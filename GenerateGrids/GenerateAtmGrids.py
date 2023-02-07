@@ -168,13 +168,13 @@ oz_test = oz_training  + DOZ/2.
 NOZ = len(oz_training)
 
 info_params_training["OZMIN"] = oz_training.min()
-info_params_training["OZVMAX"] = oz_training.max()
+info_params_training["OZMAX"] = oz_training.max()
 info_params_training["NOZ"] = len(oz_training)
 info_params_training["DOZ"] = np.median(np.diff(oz_training))
 info_params_training["OZ"]  = oz_training
 
 info_params_test["OZMIN"] = oz_test.min()
-info_params_test["OZVMAX"] = oz_test.max()
+info_params_test["OZMAX"] = oz_test.max()
 info_params_test["NOZ"] = len(oz_test)
 info_params_test["DOZ"] = np.median(np.diff(oz_test))
 info_params_test["OZ"]  = oz_test
