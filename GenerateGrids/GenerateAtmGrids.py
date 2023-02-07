@@ -14,7 +14,8 @@ import matplotlib.cm as cmx
 import pandas as pd
 from itertools import cycle, islice
 import seaborn as sns
-
+import copy
+import pickle
 
 
 
@@ -39,9 +40,12 @@ from libradtranpy import  libsimulateVisible
 import warnings
 warnings.filterwarnings('ignore')
 
+########################
+## Configuration
+########################
 
-# # Configuration
-
+file01_out = f"atmospherictransparencygrid_params_training.pickle"
+file02_out = f"atmospherictransparencygrid_params_test.pickle"
 
 file1_out = f"atmospherictransparencygrid_rayleigh_training.npy"
 file2_out = f"atmospherictransparencygrid_rayleigh_test.npy"
@@ -58,9 +62,14 @@ file6_out = f"atmospherictransparencygrid_PWVabs_test.npy"
 file7_out = f"atmospherictransparencygrid_OZabs_training.npy"
 file8_out = f"atmospherictransparencygrid_OZabs_test.npy"
 
+####################
+# info dictionary
 
+info_params = {}
+
+##################
 # ### wavelength
-
+##################
 
 WLMIN=300.
 WLMAX=1100.
@@ -68,9 +77,24 @@ WLBIN=1.
 NWLBIN=int((WLMAX-WLMIN)/WLBIN)
 WL=np.linspace(WLMIN,WLMAX,NWLBIN)
 
+info_params["WLMIN"] = WLMIN
+info_params["WLMAX"] = WLMAX
+info_params["WLBIN"] = WLBIN
+info_params["NWLBIN"] = NWLBIN
+info_params["WL"] = WL
 
+#########################
+# training and test dictionaries
+
+
+info_params_training = copy.deepcopy(info_params)
+info_params_test = copy.deepcopy(info_params)
+
+
+
+####################
 # ### airmass
-
+####################
 
 AIRMASSMIN=1.0
 AIRMASSMAX=2.6
@@ -79,8 +103,6 @@ DAM = 0.1
 
 
 airmasses = np.arange(AIRMASSMIN,AIRMASSMAX,DAM)
-
-
 NAM=len(airmasses)
 
 
@@ -95,8 +117,22 @@ airmass_test = airmasses + DAM/2.
 NX=len(airmasses)
 NY=NWLBIN
 
+info_params_training["AIRMASSMIN"] = airmass_training.min()
+info_params_training["AIRMASSMAX"] = airmass_training.max()
+info_params_training["NAIRMASS"] = len(airmass_training)
+info_params_training["DAIRMASS"] = np.median(np.diff(airmass_training))
+info_params_training["AIRMASS"]  = airmass_training
 
+
+info_params_test["AIRMASSMIN"] = airmass_test.min()
+info_params_test["AIRMASSMAX"] = airmass_test.max()
+info_params_test["NAIRMASS"] = len(airmass_test)
+info_params_test["DAIRMASS"] = np.median(np.diff(airmass_test))
+info_params_test["AIRMASS"]  = airmass_test
+
+#########################
 # ### PWV
+#########################
 
 PWVMIN = 0
 PWVMAX = 11
@@ -107,8 +143,21 @@ pwv_test = pwv_training + DPWV/2.
 
 NPWV = len(pwv_training)
 
+info_params_training["PWVMIN"] = pwv_training.min()
+info_params_training["PWVMAX"] = pwv_training.max()
+info_params_training["NPWV"] = len(pwv_training)
+info_params_training["DPWV"] = np.median(np.diff(pwv_training))
+info_params_training["PWV"]  = pwv_training
 
-# ### OZON
+info_params_test["PWVMIN"] = pwv_test.min()
+info_params_test["PWVMAX"] = pwv_test.max()
+info_params_test["NPWV"] = len(pwv_test)
+info_params_test["DPWV"] = np.median(np.diff(pwv_test))
+info_params_test["PWV"]  = pwv_test
+
+
+
+# ### OZONE
 OZMIN = 0
 OZMAX = 600
 DOZ   = 100
@@ -118,8 +167,28 @@ oz_test = oz_training  + DOZ/2.
 
 NOZ = len(oz_training)
 
+info_params_training["OZMIN"] = oz_training.min()
+info_params_training["OZVMAX"] = oz_training.max()
+info_params_training["NOZ"] = len(oz_training)
+info_params_training["DOZ"] = np.median(np.diff(oz_training))
+info_params_training["OZ"]  = oz_training
 
+info_params_test["OZMIN"] = oz_test.min()
+info_params_test["OZVMAX"] = oz_test.max()
+info_params_test["NOZ"] = len(oz_test)
+info_params_test["DOZ"] = np.median(np.diff(oz_test))
+info_params_test["OZ"]  = oz_test
+
+with open(file01_out, 'wb') as handle:
+    pickle.dump(info_params_training, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+    
+with open(file02_out, 'wb') as handle:
+    pickle.dump(info_params_test, handle, protocol=pickle.HIGHEST_PROTOCOL)   
+
+##############################
 # ### Data
+####################################
 
 data_O2abs_training=np.zeros((NWLBIN,NAM))
 data_O2abs_test=np.zeros((NWLBIN,NAM))
@@ -134,6 +203,9 @@ data_H2Oabs_test=np.zeros((NWLBIN,NAM,NPWV))
 data_OZabs_training=np.zeros((NWLBIN,NAM,NOZ))
 data_OZabs_test=np.zeros((NWLBIN,NAM,NOZ))
 
+##########################################
+# Simulation of Rayleigh scattering
+##############################################
 
 pwv= 0
 pwv= 0
@@ -164,6 +236,10 @@ np.save(file2_out,data_rayleigh_test, allow_pickle=False)
 
 #plt.plot(WL,data_rayleigh_test[:,:])
 
+##########################################
+# Simulation of O2 absorption
+##############################################
+
 
 for idx,am in enumerate(airmass_training):
     path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, FLAG_VERBOSE=False)
@@ -190,9 +266,14 @@ np.save(file4_out,data_O2abs_test, allow_pickle=False)
 
 #plt.plot(WL,data_O2abs_test[:,:])
 
+##########################################
+# Simulation of H2O absorption
+##############################################
 
 # ## Precipitable water vapor
-
+print("======================================")
+print("Simulation of PWV training sample")
+print("======================================")
 
 oz=0
 for idx_pwv,pwv in enumerate(pwv_training):
@@ -209,6 +290,9 @@ for idx_pwv,pwv in enumerate(pwv_training):
        
 np.save(file5_out,data_H2Oabs_training, allow_pickle=False)
 
+print("======================================")
+print("Simulation of PWV test sample")
+print("======================================")
 oz=0
 for idx_pwv,pwv in enumerate(pwv_test):
     data_slice_test=np.zeros((NWLBIN,NAM))
@@ -226,9 +310,14 @@ for idx_pwv,pwv in enumerate(pwv_test):
 np.save(file6_out,data_H2Oabs_test,allow_pickle=False)
 
 
-# ## Ozone
 
+##########################################
+# Simulation of Ozone absorption
+##############################################
 
+print("======================================")
+print("Simulation of Ozone training sample")
+print("======================================")
 pwv=0
 for idx_oz,oz in enumerate(oz_training):
     data_slice_training=np.zeros((NWLBIN,NAM))
@@ -245,7 +334,9 @@ for idx_oz,oz in enumerate(oz_training):
 
 np.save(file7_out,data_OZabs_training, allow_pickle=False)
 
-
+print("======================================")
+print("Simulation of Ozone test sample")
+print("======================================")
 pwv=0
 for idx_oz,oz in enumerate(oz_test):
     data_slice_test=np.zeros((NWLBIN,NAM))
