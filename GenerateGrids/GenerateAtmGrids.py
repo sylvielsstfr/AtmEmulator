@@ -160,7 +160,7 @@ info_params_test["PWV"]  = pwv_test
 # ### OZONE
 OZMIN = 0
 OZMAX = 600
-DOZ   = 100
+DOZ   = 50
 
 oz_training = np.arange(OZMIN,OZMAX,DOZ)
 oz_test = oz_training  + DOZ/2.
