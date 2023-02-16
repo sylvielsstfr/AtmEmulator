@@ -136,7 +136,7 @@ info_params_test["AIRMASS"]  = airmass_test
 
 PWVMIN = 0
 PWVMAX = 11
-DPWV = 0.5
+DPWV = 0.25
 
 pwv_training = np.arange(PWVMIN,PWVMAX,DPWV)
 pwv_test = pwv_training + DPWV/2.
@@ -160,7 +160,7 @@ info_params_test["PWV"]  = pwv_test
 # ### OZONE
 OZMIN = 0
 OZMAX = 600
-DOZ   = 50
+DOZ   = 25
 
 oz_training = np.arange(OZMIN,OZMAX,DOZ)
 oz_test = oz_training  + DOZ/2.
