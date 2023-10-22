@@ -1,77 +1,69 @@
-[build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "AtmEmulator"
-version = "0.0.1"
-
-authors = [
-    {name = "Sylvie Dagoret-Campagne", email = "sylvie.dagoret-campagne@ijclab.in2p3.fr"},
-]
-description = "Atmospheric transparency emulator for Rubin LSST observatory "
+name = "atmemulator"
+license = {file = "LICENSE"}
 readme = "README.md"
-requires-python = ">=3.7"
-keywords = ["atmosphere", "air","astronomy","cosmology"]
-license = { file = "LICENSE" }
+authors = [
+    { name = "Sylvie Dagoret-Campagne", email = "sylvie.dagoret-campagne@ijclab.in2p3.fr" }
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Natural Language :: English",
-    "Operating System :: POSIX"
 ]
+dynamic = ["version"]
 dependencies = [
-    "numpy",
-    "matplotlib",
-    "pandas",
-    "scipy",
+    "ipykernel", # Support for Jupyter notebooks
 ]
-#dynamic = ["version"]
 
+# On a mac, install optional dependencies with `pip install '.[dev]'` (include the single quotes)
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov", # Used to report total code coverage
+    "pre-commit", # Used to run checks before finalizing a git commit
+    "sphinx", # Used to automatically generate documentation
+    "sphinx-rtd-theme", # Used to render documentation
+    "sphinx-autoapi", # Used to automatically generate api documentation
+    "pylint", # Used for static linting of files
+    # if you add dependencies here while experimenting in a notebook and you
+    # want that notebook to render in your documentation, please add the
+    # dependencies to ./docs/requirements.txt as well.
+    "nbconvert", # Needed for pre-commit check to clear output from Python notebooks
+    "nbsphinx", # Used to integrate Python notebooks into Sphinx documentation
+    "ipython", # Also used in building notebooks into Sphinx
+    "matplotlib", # Used in sample notebook intro_notebook.ipynb
+    "numpy", # Used in sample notebook intro_notebook.ipynb
+    "asv==0.5.1", # Used to compute performance benchmarks
+]
 
+[build-system]
+requires = [
+    "setuptools>=62", # Used to build and package the Python project
+    "setuptools_scm>=6.2", # Gets release version from git. Makes it available programmatically
+]
+build-backend = "setuptools.build_meta"
 
-#[project.scripts]
-#my-script = "my_package.module:function"
+[tool.setuptools_scm]
+write_to = "src/atmemulator/_version.py"
 
-# ... other project metadata fields as specified in:
-#     https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
 
-
-#[tool.setuptools.packages]
-#find = {}  # Scan the project directory with the default parameters
-
+[tool.coverage.run]
+omit=["src/atmemulator/_version.py"]
 
 [tool.setuptools.packages.find]
-# All the following settings are optional:
-#where = ["src"]  # ["."] by default
-#include = ["atmosphtransmemullsst*"]  # ["*"] by default
-#exclude = ["atmosphtransmemullsst.notebooks"]  # empty by default
+where = ["src"]  # list of folders that contain the packages (["."] by default)
+include = ["atmemulator","simpleemulator"]  # package names should match these glob patterns (["*"] by default)
+exclude = ["my_package.tests*"]  # exclude packages matching these glob patterns (empty by default)
+namespaces = true  # to activate scanning PEP 420 namespaces (true by default)
 
 
 [tool.setuptools.package-data]
-"atmosphtransmemullsst" = ["data/simplegrid/*.npy","data/simplegrid/*.pickle","data/finegrid/*.npy","data/finegrid/*.pickle"]
-
-
-[tool.pydocstyle]
-convention = "numpy"
-add_select = [
-    "D212" # Multi-line docstring summary should start at the first line
-]
-add-ignore = [
-    "D105", # Missing docstring in magic method
-    "D102", # Missing docstring in public method (needed for docstring inheritance)
-    "D100", # Missing docstring in public module
-    # Below are required to allow multi-line summaries.
-    "D200", # One-line docstring should fit on one line with quotes
-    "D205", # 1 blank line required between summary line and description
-    "D400", # First line should end with a period
-    # Properties shouldn't be written in imperative mode. This will be fixed
-    # post 6.1.1, see https://github.com/PyCQA/pydocstyle/pull/546
-    "D401",
-]
-
+simpleemulator = ["*.txt"]
+"simpleemulator.data" = ["*.npy","*.pickle"]
