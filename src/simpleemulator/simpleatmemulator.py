@@ -1,19 +1,21 @@
 # Simple atmospheric transparency Emulator
 #
-# - author : Sylvie Dagoret-Campagne
+#- author : Sylvie Dagoret-Campagne
 #- affiliation : IJCLab/IN2P3/CNRS
 #- creation date : 2023/02/07
 #- last update : 2023/10/22
 #This emulator is based from datagrid of atmospheric transparencies extracted from libradtran
 
 import os
-import sys
+import sys,getopt
 from pathlib import Path
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 import pickle
 from importlib.resources import files
 
+
+# about datapath
 
 dir_path_data = os.path.join(os.path.dirname(__file__), 'data')
 
@@ -62,7 +64,21 @@ def find_data_path():
             
     return path_data 
 
-final_path_data = find_data_path()
+#final_path_data = find_data_path()
+final_path_data = dir_path_data
+
+
+
+# preselected sites in libradtranpy
+
+Dict_Of_sitesAltitudes = {'LSST':2.663,
+                          'CTIO':2.207,
+                          'OHP':0.65,
+                          'PDM':2.8905,
+                          'OMK':4.205,
+                          'OSL':0,
+                           }
+
 
 class SimpleAtmEmulator:
     """
@@ -76,23 +92,33 @@ class SimpleAtmEmulator:
     - Aerosol transmission for any number of components
     
     """
-    def __init__(self,path = final_path_data) :
+    def __init__(self,obs_str = "LSST", path = final_path_data) :
         """
         Initialize the class for data point files from which the 2D and 3D grids are created.
         Interpolation are calculated from the scipy RegularGridInterpolator() function
         
         """
+        OBS_tag = ""
+        if obs_str in Dict_Of_sitesAltitudes.keys():
+            OBS_tag = obs_str
+            print(f"Observatory {obs_str} found in preselected observation sites")
+        else:
+            print(f"Observatory {obs_str} not in preselected observation sites")
+            print(f"This site {obs_str} must be added in libradtranpy preselected sites")
+            print(f"and generate corresponding scattering and absorption profiles")
+            sys.exit()
+
         self.path = path
-        self.fn_info_training = file_data_dict["info_training"]
-        self.fn_info_test = file_data_dict["info_test"]
-        self.fn_rayleigh_training = file_data_dict["data_rayleigh_training"]
-        self.fn_rayleigh_test = file_data_dict["data_rayleigh_test"]
-        self.fn_O2abs_training = file_data_dict["data_o2abs_training"]
-        self.fn_O2abs_test = file_data_dict["data_o2abs_test"]
-        self.fn_PWVabs_training = file_data_dict["data_pwvabs_training"]
-        self.fn_PWVabs_test = file_data_dict[ "data_pwvabs_test"]
-        self.fn_OZabs_training = file_data_dict["data_ozabs_training"]
-        self.fn_OZabs_test = file_data_dict["data_ozabs_test"]
+        self.fn_info_training = OBS_tag + "_" + file_data_dict["info_training"]
+        self.fn_info_test = OBS_tag + "_" + file_data_dict["info_test"]
+        self.fn_rayleigh_training = OBS_tag + "_" + file_data_dict["data_rayleigh_training"]
+        self.fn_rayleigh_test = OBS_tag + "_" + file_data_dict["data_rayleigh_test"]
+        self.fn_O2abs_training = OBS_tag + "_" + file_data_dict["data_o2abs_training"]
+        self.fn_O2abs_test = OBS_tag + "_" + file_data_dict["data_o2abs_test"]
+        self.fn_PWVabs_training = OBS_tag + "_" + file_data_dict["data_pwvabs_training"]
+        self.fn_PWVabs_test = OBS_tag + "_" + file_data_dict[ "data_pwvabs_test"]
+        self.fn_OZabs_training = OBS_tag + "_" + file_data_dict["data_ozabs_training"]
+        self.fn_OZabs_test = OBS_tag + "_" + file_data_dict["data_ozabs_test"]
 
         self.info_params_training = None
         self.info_params_test = None
@@ -326,15 +352,32 @@ class SimpleAtmEmulator:
             
         return transm
     
-def main():
+
+
+def usage():
+    print("*******************************************************************")
+    print(sys.argv[0],' -s<observation site-string>')
+    print("Observation sites are : ")
+    print(' '.join(Dict_Of_sitesAltitudes.keys()))
+
+
+    print('\t Actually provided : ')
+    print('\t \t Number of arguments:', len(sys.argv), 'arguments.')
+    print('\t \t Argument List:', str(sys.argv))
+
+
+
+
+def run(obs_str):
     print("============================================================")
-    print("Simple Atmospheric emulator for Rubin-LSST observatory")
+    print(f"Simple Atmospheric emulator for {obs_str} observatory")
     print("============================================================")
     
     # retrieve the path of data
-    path_data =  find_data_path()  
+    #path_data =  find_data_path()  
     # create emulator  
-    emul = SimpleAtmEmulator(path = path_data)
+    #emul = SimpleAtmEmulator(path = path_data)
+    emul = SimpleAtmEmulator(obs_str=obs_str)
     wl = [400.,800.,900.]
     am=1.2
     pwv =4.0
@@ -346,6 +389,34 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hs:",["s="])
+    except getopt.GetoptError:
+        print(' Exception bad getopt with :: '+sys.argv[0]+ ' -s<observation-site-string>')
+        sys.exit(2)
+
+    print('opts = ',opts)
+    print('args = ',args)
+
+    obs_str = ""
+    for opt, arg in opts:
+        if opt == '-h':
+            usage()
+            sys.exit()
+        elif opt in ("-s", "--site"):
+            obs_str = arg
+       
+
+        
+    if obs_str in Dict_Of_sitesAltitudes.keys():
+        run(obs_str=obs_str)
+    else:
+        print(f"Observatory {obs_str} not in preselected observation site")
+        print(f"This site {obs_str} must be added in libradtranpy preselected sites")
+        sys.exit()
+
+
+    
             
             

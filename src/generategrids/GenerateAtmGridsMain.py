@@ -8,7 +8,6 @@
 
 import os
 import numpy as np
-import pandas as pd
 from itertools import cycle, islice
 import copy
 import pickle
@@ -33,9 +32,10 @@ Dict_Of_sitesAltitudes = {'LSST':2.663, # Rubin-LSST
 
 def usage():
     print("*******************************************************************")
-    print(sys.argv[0],' -s<observation site-string>')
+    print(sys.argv[0],' -s<observation site-string> [-q <procs>]')
     print("Observation sites are : ")
     print(' '.join(Dict_Of_sitesAltitudes.keys()))
+    print("procs =  sa, sc or ab")
 
 
     print('\t Actually provided : ')
@@ -47,9 +47,9 @@ if __name__ == "__main__":
 
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"hs:",["s="])
+        opts, args = getopt.getopt(sys.argv[1:],"hs:q",["s=","q="])
     except getopt.GetoptError:
-        print(' Exception bad getopt with :: '+sys.argv[0]+ ' -s<observation-site-string>')
+        print(' Exception bad getopt with :: '+sys.argv[0]+ ' -s<observation-site-string> -q<procs>')
         sys.exit(2)
 
     print('opts = ',opts)
@@ -57,13 +57,18 @@ if __name__ == "__main__":
         
         
     alt_str = ""
-        
+    proc_str = "sa"
+
     for opt, arg in opts:
         if opt == '-h':
             usage()
             sys.exit()
         elif opt in ("-s", "--site"):
-                alt_str = arg
+            alt_str = arg
+        elif opt in ("-q"):
+            proc_str = arg
+
+
         
     if alt_str in Dict_Of_sitesAltitudes.keys():
         OBS_tag = alt_str
@@ -72,9 +77,20 @@ if __name__ == "__main__":
         print(f"This site {alt_str} must be added in libradtranpy preselected sites")
         sys.exit()
 
+    FLAG_SCATTERING = True
+    FLAG_ABSORPTION = True
+    if proc_str == "sc":
+        FLAG_ABSORPTION = False
+    elif proc_str == "ab":
+        FLAG_SCATTERING = False
+
+
+
+
     ########################
     ## Configuration
     ########################
+
 
     file01_out = f"{OBS_tag}_atmospherictransparencygrid_params_training.pickle"
     file02_out = f"{OBS_tag}_atmospherictransparencygrid_params_test.pickle"
@@ -235,154 +251,171 @@ if __name__ == "__main__":
     # note we call function ProcessSimulation with proc_str='sc' which mean scattering only
 
     # set pwv and ozone to zero (no need here)
-    pwv= 0
-    oz = 0
 
-    #training
-    for idx,am in enumerate(airmass_training):
-        path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='sc',cloudext=0.0, altitude_str = OBS_tag,FLAG_VERBOSE=False)
-        data = np.loadtxt(os.path.join(path,thefile))
-        f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
-        atm=f(WL)
-        data_rayleigh_training[:,idx]=atm
-    
-    np.save(file1_out,data_rayleigh_training, allow_pickle=False)
+    if FLAG_SCATTERING:
+        pwv= 0
+        oz = 0
 
-
-    #test
-    for idx,am in enumerate(airmass_test):
-        path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='sc',cloudext=0.0,altitude_str = OBS_tag ,FLAG_VERBOSE=False)
-        data = np.loadtxt(os.path.join(path,thefile))
-        f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
-        atm=f(WL)
-        data_rayleigh_test[:,idx]=atm
-
-    np.save(file2_out,data_rayleigh_test, allow_pickle=False)
-
-
-
-    ##########################################
-    # Simulation of O2 absorption
-    ##############################################
-
-    # note we call function ProcessSimulation with proc_str='ab' which mean absorption only
-
-    # set pwv and ozone to zero (no need here)
-    pwv= 0
-    oz = 0
-
-    for idx,am in enumerate(airmass_training):
-        path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0,altitude_str = OBS_tag ,FLAG_VERBOSE=False)
-        data = np.loadtxt(os.path.join(path,thefile))
-        f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
-        atm=f(WL)
-        data_O2abs_training[:,idx]=atm
-
-    np.save(file3_out,data_O2abs_training, allow_pickle=False)
-
-
-    for idx,am in enumerate(airmass_test):
-        path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag, FLAG_VERBOSE=False)
-        data = np.loadtxt(os.path.join(path,thefile))
-        f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
-        atm=f(WL)
-        data_O2abs_test[:,idx]=atm
-
-
-    np.save(file4_out,data_O2abs_test, allow_pickle=False)
-
-    ##########################################
-    # Simulation of H2O absorption
-    ##############################################
-
-    # ## Precipitable water vapor
-    print("======================================")
-    print("Simulation of PWV training sample")
-    print("======================================")
-
-    # note we call function ProcessSimulation with proc_str='ab' which mean absorption only
-    # we cut ozone
-    # however we cannot cut O2 absorption
-
-    oz=0
-    for idx_pwv,pwv in enumerate(pwv_training):
-        data_slice_training=np.zeros((NWLBIN,NAM))
-        for idx_am,am in enumerate(airmass_training):     
-            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
+        #training
+        for idx,am in enumerate(airmass_training):
+            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='sc',cloudext=0.0, altitude_str = OBS_tag,FLAG_VERBOSE=False)
             data = np.loadtxt(os.path.join(path,thefile))
             f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
             atm=f(WL)
-            data_slice_training[:,idx_am]=atm
-        # remove O2 absorption in H2O absorption profile
-        data_slice_training/=data_O2abs_training
-        data_H2Oabs_training[:,:,idx_pwv] = data_slice_training
+            data_rayleigh_training[:,idx]=atm
+    
+        np.save(file1_out,data_rayleigh_training, allow_pickle=False)
+
+
+        #test
+        for idx,am in enumerate(airmass_test):
+            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='sc',cloudext=0.0,altitude_str = OBS_tag ,FLAG_VERBOSE=False)
+            data = np.loadtxt(os.path.join(path,thefile))
+            f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
+            atm=f(WL)
+            data_rayleigh_test[:,idx]=atm
+
+        np.save(file2_out,data_rayleigh_test, allow_pickle=False)
+
+
+    if FLAG_ABSORPTION:
+        ##########################################
+        # Simulation of O2 absorption
+        ##############################################
+
+        # note we call function ProcessSimulation with proc_str='ab' which mean absorption only
+
+        # set pwv and ozone to zero (no need here)
+        pwv= 0
+        oz = 0
+
+
+        print("======================================")
+        print("Simulation of O2 training sample")
+        print("======================================")
+
+        for idx,am in enumerate(airmass_training):
+            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0,altitude_str = OBS_tag ,FLAG_VERBOSE=False)
+            data = np.loadtxt(os.path.join(path,thefile))
+            f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
+            atm=f(WL)
+            data_O2abs_training[:,idx]=atm
+
+        np.save(file3_out,data_O2abs_training, allow_pickle=False)
+        print(f"...... O2 abs training file {file3_out} written")
+
+        print("======================================")
+        print("Simulation of O2 test sample")
+        print("======================================")
+
+        for idx,am in enumerate(airmass_test):
+            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag, FLAG_VERBOSE=False)
+            data = np.loadtxt(os.path.join(path,thefile))
+            f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
+            atm=f(WL)
+            data_O2abs_test[:,idx]=atm
+
+        np.save(file4_out,data_O2abs_test, allow_pickle=False)
+        print(f"...... O2 abs test file {file4_out} written")
+
+        ##########################################
+        # Simulation of H2O absorption
+        ##############################################
+
+        # ## Precipitable water vapor
+        print("======================================")
+        print("Simulation of PWV training sample")
+        print("======================================")
+
+        # note we call function ProcessSimulation with proc_str='ab' which mean absorption only
+        # we cut ozone
+        # however we cannot cut O2 absorption
+
+        oz=0
+        for idx_pwv,pwv in enumerate(pwv_training):
+            data_slice_training=np.zeros((NWLBIN,NAM))
+            for idx_am,am in enumerate(airmass_training):     
+                path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
+                data = np.loadtxt(os.path.join(path,thefile))
+                f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
+                atm=f(WL)
+                data_slice_training[:,idx_am]=atm
+            # remove O2 absorption in H2O absorption profile
+            data_slice_training/=data_O2abs_training
+            data_H2Oabs_training[:,:,idx_pwv] = data_slice_training
+
+        np.save(file5_out,data_H2Oabs_training,allow_pickle=False)
+        print(f"...... H2O abs training file {file5_out} written")
        
 
 
-    print("======================================")
-    print("Simulation of PWV test sample")
-    print("======================================")
-    oz=0
-    for idx_pwv,pwv in enumerate(pwv_test):
-        data_slice_test=np.zeros((NWLBIN,NAM))
-        for idx_am,am in enumerate(airmass_test):     
-            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
-            data = np.loadtxt(os.path.join(path,thefile))
-            f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
-            atm=f(WL)
-            data_slice_test[:,idx_am]=atm
-        # remove O2 absorption in H2O absorption profile
-        data_slice_test/=data_O2abs_test
-        data_H2Oabs_test[:,:,idx_pwv] = data_slice_test
+        print("======================================")
+        print("Simulation of PWV test sample")
+        print("======================================")
+        oz=0
+        for idx_pwv,pwv in enumerate(pwv_test):
+            data_slice_test=np.zeros((NWLBIN,NAM))
+            for idx_am,am in enumerate(airmass_test):     
+                path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
+                data = np.loadtxt(os.path.join(path,thefile))
+                f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
+                atm=f(WL)
+                data_slice_test[:,idx_am]=atm
+            # remove O2 absorption in H2O absorption profile
+            data_slice_test/=data_O2abs_test
+            data_H2Oabs_test[:,:,idx_pwv] = data_slice_test
 
 
-    np.save(file6_out,data_H2Oabs_test,allow_pickle=False)
+        np.save(file6_out,data_H2Oabs_test,allow_pickle=False)
+        print(f"...... H2O abs test file {file6_out} written")
 
 
 
-    ##########################################
-    # Simulation of Ozone absorption
-    ##############################################
+        ##########################################
+        # Simulation of Ozone absorption
+        ##############################################
 
-    print("======================================")
-    print("Simulation of Ozone training sample")
-    print("======================================")
+        print("======================================")
+        print("Simulation of Ozone training sample")
+        print("======================================")
 
-    # note we call function ProcessSimulation with proc_str='ab' which mean absorption only
-    # we remove pwv absorption
-    # however we cannot cut O2 absorption
-    pwv=0
-    for idx_oz,oz in enumerate(oz_training):
-        data_slice_training=np.zeros((NWLBIN,NAM))
-        for idx_am,am in enumerate(airmass_training):     
-            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
-            data = np.loadtxt(os.path.join(path,thefile))
-            f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
-            atm=f(WL)
-            data_slice_training[:,idx_am]=atm
-        # remove O2 profile from ozone profile
-        data_slice_training/=data_O2abs_training
-        data_OZabs_training[:,:,idx_oz] = data_slice_training
-
-
-    np.save(file7_out,data_OZabs_training, allow_pickle=False)
-
-    print("======================================")
-    print("Simulation of Ozone test sample")
-    print("======================================")
-    pwv=0
-    for idx_oz,oz in enumerate(oz_test):
-        data_slice_test=np.zeros((NWLBIN,NAM))
-        for idx_am,am in enumerate(airmass_test):     
-            path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
-            data = np.loadtxt(os.path.join(path,thefile))
-            f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
-            atm=f(WL)
-            data_slice_test[:,idx_am]=atm
-        # remove O2 profile from ozone profile
-        data_slice_test/=data_O2abs_test
-        data_OZabs_test[:,:,idx_oz] = data_slice_test
+        # note we call function ProcessSimulation with proc_str='ab' which mean absorption only
+        # we remove pwv absorption
+        # however we cannot cut O2 absorption
+        pwv=0
+        for idx_oz,oz in enumerate(oz_training):
+            data_slice_training=np.zeros((NWLBIN,NAM))
+            for idx_am,am in enumerate(airmass_training):     
+                path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
+                data = np.loadtxt(os.path.join(path,thefile))
+                f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
+                atm=f(WL)
+                data_slice_training[:,idx_am]=atm
+            # remove O2 profile from ozone profile
+            data_slice_training/=data_O2abs_training
+            data_OZabs_training[:,:,idx_oz] = data_slice_training
 
 
-    np.save(file8_out,data_OZabs_test, allow_pickle=False)
+        np.save(file7_out,data_OZabs_training, allow_pickle=False)
+        print(f"...... O3 abs training file {file7_out} written")
+
+        print("======================================")
+        print("Simulation of Ozone test sample")
+        print("======================================")
+        pwv=0
+        for idx_oz,oz in enumerate(oz_test):
+            data_slice_test=np.zeros((NWLBIN,NAM))
+            for idx_am,am in enumerate(airmass_test):     
+                path,thefile = libsimulateVisible.ProcessSimulation(am,pwv,oz,0,prof_str='us',proc_str='ab',cloudext=0.0, altitude_str = OBS_tag ,FLAG_VERBOSE=False)
+                data = np.loadtxt(os.path.join(path,thefile))
+                f = interpolate.interp1d(x=data[:,0], y=data[:,1],fill_value="extrapolate")
+                atm=f(WL)
+                data_slice_test[:,idx_am]=atm
+            # remove O2 profile from ozone profile
+            data_slice_test/=data_O2abs_test
+            data_OZabs_test[:,:,idx_oz] = data_slice_test
+
+
+        np.save(file8_out,data_OZabs_test, allow_pickle=False)
+        print(f"...... O3 abs test file {file8_out} written")
 
