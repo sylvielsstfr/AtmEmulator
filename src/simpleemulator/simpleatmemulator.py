@@ -15,6 +15,25 @@ import pickle
 from importlib.resources import files
 
 
+# preselected sites 
+Dict_Of_sitesAltitudes = {'LSST':2.663,
+                          'CTIO':2.207,
+                          'OHP':0.65,
+                          'PDM':2.8905,
+                          'OMK':4.205,
+                          'OSL':0.000,
+                           }
+# pressure calculated by libradtran
+Dict_Of_sitesPressures = {'LSST':731.50433,
+                          'CTIO':774.6052,
+                          'OHP':937.22595,
+                          'PDM':710.90637,
+                          'OMK':600.17224,
+                          'OSL':1013.000,
+                        }
+
+
+
 # about datapath
 
 dir_path_data = os.path.join(os.path.dirname(__file__), 'data')
