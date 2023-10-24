@@ -3,7 +3,7 @@
 #- author : Sylvie Dagoret-Campagne
 #- affiliation : IJCLab/IN2P3/CNRS
 #- creation date : 2023/02/07
-#- last update : 2023/10/22
+#- last update : 2023/10/24
 #This emulator is based from datagrid of atmospheric transparencies extracted from libradtran
 
 import os
@@ -53,7 +53,9 @@ file_data_dict = {
 
 def find_data_path():
     """
-    Search the path for the atmospheric emulator
+    Search the path for the atmospheric emulator.
+    Normaly there is no need to debug where are the data given the dir_path_data is
+    the good place to find the data. It is left for debug purpose
     """
     
     print("\t - dir_path_data ",dir_path_data)
@@ -83,7 +85,7 @@ def find_data_path():
             
     return path_data 
 
-#final_path_data = find_data_path()
+# inal_path_data is defined in case dir_path_data_data would not be the right data path 
 final_path_data = dir_path_data
 
 
@@ -115,7 +117,12 @@ class SimpleAtmEmulator:
         """
         Initialize the class for data point files from which the 2D and 3D grids are created.
         Interpolation are calculated from the scipy RegularGridInterpolator() function
-        
+        Both types of data : trainging data for normal interpolaton use and the test data used
+        to check accuracy of the interpolation of data.
+
+        parameters :
+          obs_str : pre-defined observation site tag corresponding to data files in data path
+          path    : path for data files
         """
         OBS_tag = ""
         if obs_str in Dict_Of_sitesAltitudes.keys():
@@ -127,6 +134,7 @@ class SimpleAtmEmulator:
             print(f"and generate corresponding scattering and absorption profiles")
             sys.exit()
 
+        # construct the path of input data files
         self.path = path
         self.fn_info_training = OBS_tag + "_" + file_data_dict["info_training"]
         self.fn_info_test = OBS_tag + "_" + file_data_dict["info_test"]
@@ -150,13 +158,16 @@ class SimpleAtmEmulator:
         self.data_OZabs_training = None
         self.data_OZabs_test = None
         
+        # load all data files (training and test)
         self.loadtables()
         
+        # setup training dataset (those used for interpolation)
         self.WLMIN = self.info_params_training["WLMIN"]
         self.WLMAX = self.info_params_training["WLMAX"]
         self.WLBIN = self.info_params_training["WLBIN"]
         self.NWLBIN = self.info_params_training['NWLBIN']
         self.WL = self.info_params_training['WL']
+        self.OBS = self.info_params_training['OBS']
         
         self.AIRMASSMIN = self.info_params_training['AIRMASSMIN']
         self.AIRMASSMAX = self.info_params_training['AIRMASSMAX']
@@ -178,10 +189,41 @@ class SimpleAtmEmulator:
         self.OZ = self.info_params_training['OZ']
         
         
+        # setup test dataset (those used for testing interpolation accuracy)
+
+        self.WLMIN_test = self.info_params_test["WLMIN"]
+        self.WLMAX_test = self.info_params_test["WLMAX"]
+        self.WLBIN_test = self.info_params_test["WLBIN"]
+        self.NWLBIN_test = self.info_params_test['NWLBIN']
+        self.WL_test = self.info_params_test['WL']
+        self.OBS_test = self.info_params_test['OBS']
+        
+        self.AIRMASSMIN_test = self.info_params_test['AIRMASSMIN']
+        self.AIRMASSMAX_test = self.info_params_test['AIRMASSMAX']
+        self.NAIRMASS_test = self.info_params_test['NAIRMASS']
+        self.DAIRMASS_test = self.info_params_test['DAIRMASS']
+        self.AIRMASS_test = self.info_params_test['AIRMASS']
+        
+        self.PWVMIN_test = self.info_params_test['PWVMIN']
+        self.PWVMAX_test = self.info_params_test['PWVMAX'] 
+        self.NPWV_test = self.info_params_test['NPWV']
+        self.DPWV_test = self.info_params_test['DPWV'] 
+        self.PWV_test = self.info_params_test['PWV']
+        
+        
+        self.OZMIN_test =  self.info_params_test['OZMIN']
+        self.OZMAX_test = self.info_params_test['OZMAX']
+        self.NOZ_test = self.info_params_test['NOZ']
+        self.DOZ_test =  self.info_params_test['DOZ'] 
+        self.OZ_test = self.info_params_test['OZ']
+
+
+
+        # constant parameters defined for aerosol formula
         self.lambda0 = 550.
         self.tau0 = 1.
 
-
+        # interpolation is done over training dataset
         self.func_rayleigh_train = RegularGridInterpolator((self.WL,self.AIRMASS),self.data_rayleigh_training)
         self.func_O2abs_train = RegularGridInterpolator((self.WL,self.AIRMASS),self.data_O2abs_training)
         self.func_PWVabs_train = RegularGridInterpolator((self.WL,self.AIRMASS,self.PWV),self.data_PWVabs_training)
@@ -235,7 +277,8 @@ class SimpleAtmEmulator:
         with open(filename, 'rb') as f:
             self.data_OZabs_test=np.load(f)
             
-            
+    # functions to access to interpolated transparency functions on training dataset
+    #        
     def GetWL(self):
         return self.WL
             
@@ -380,7 +423,7 @@ def usage():
     print(' '.join(Dict_Of_sitesAltitudes.keys()))
 
 
-    print('\t Actually provided : ')
+    print('\t actually provided : ')
     print('\t \t Number of arguments:', len(sys.argv), 'arguments.')
     print('\t \t Argument List:', str(sys.argv))
 
