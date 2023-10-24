@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "AtmEmulator"
+version = "0.0.1"
+
+authors = [
+    {name = "Sylvie Dagoret-Campagne", email = "sylvie.dagoret-campagne@ijclab.in2p3.fr"},
+]
+description = "Atmospheric transparency emulator for Rubin LSST observatory "
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = ["atmosphere", "air","astronomy","cosmology"]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Natural Language :: English",
+    "Operating System :: POSIX"
+]
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "pandas",
+    "scipy",
+]
+#dynamic = ["version"]
+
+
+
+#[project.scripts]
+#my-script = "my_package.module:function"
+
+# ... other project metadata fields as specified in:
+#     https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+
+
+#[tool.setuptools.packages]
+#find = {}  # Scan the project directory with the default parameters
+
+
+[tool.setuptools.packages.find]
+# All the following settings are optional:
+#where = ["src"]  # ["."] by default
+#include = ["atmosphtransmemullsst*"]  # ["*"] by default
+#exclude = ["atmosphtransmemullsst.notebooks"]  # empty by default
+
+
+[tool.setuptools.package-data]
+"atmosphtransmemullsst" = ["data/simplegrid/*.npy","data/simplegrid/*.pickle","data/finegrid/*.npy","data/finegrid/*.pickle"]
+
+
+[tool.pydocstyle]
+convention = "numpy"
+add_select = [
+    "D212" # Multi-line docstring summary should start at the first line
+]
+add-ignore = [
+    "D105", # Missing docstring in magic method
+    "D102", # Missing docstring in public method (needed for docstring inheritance)
+    "D100", # Missing docstring in public module
+    # Below are required to allow multi-line summaries.
+    "D200", # One-line docstring should fit on one line with quotes
+    "D205", # 1 blank line required between summary line and description
+    "D400", # First line should end with a period
+    # Properties shouldn't be written in imperative mode. This will be fixed
+    # post 6.1.1, see https://github.com/PyCQA/pydocstyle/pull/546
+    "D401",
+]
+

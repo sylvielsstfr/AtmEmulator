@@ -1,0 +1,2 @@
+from atmemulator.simpleemulator import Dict_Of_sitesAltitudes,Dict_Of_sitesPressures
+__all__ = ["Dict_Of_sitesAltitudes","Dict_Of_sitesPressures"]
