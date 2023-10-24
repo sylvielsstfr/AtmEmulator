@@ -46,12 +46,12 @@ Notes:
 
 
 
-# Package AtmEmulator
+# Package AtmEmulator Description
 
 Purpose : Python Emulators of libradtran atomospheric transparency for Rubin-LSST observatory
 - Author : Sylvie Dagoret-Campagne
 - Affiliation : IJCLab/IN2P3/CNRS
-- date : February 2023
+- date : October 2023
 
 
 This is a python package dedicated to fast emulators of atmospheric transparency at the Rubin LSST observatory.
@@ -75,7 +75,7 @@ the installation may proceed as follow:
 
 
 ## Usage 
-
+For LSST
 
             from atmosphtransmemullsst.simpleatmospherictransparencyemulator import SimpleAtmEmulator
 
@@ -97,4 +97,15 @@ the installation may proceed as follow:
             transm is the array of  the atmospheric transmission (one element per wavelength element)
 
 
-            for more details, refer to the notebooks.
+   for more details, refer to the notebooks.
+
+
+   It is also possible to use this emulator for other sites like CTIO, Mauna Kea, Observatoire de Haute Provence, Pic du Midi, Sea Level.
+
+
+
+## Tests
+
+Please refer to [docs/notebooks](docs/notebooks/intro_notebook.ipynb) to run examples for using `simpleemulator`  including its accuracy tests.
+
+

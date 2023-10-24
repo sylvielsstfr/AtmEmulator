@@ -12,7 +12,6 @@ from pathlib import Path
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 import pickle
-from importlib.resources import files
 
 
 # preselected sites 
