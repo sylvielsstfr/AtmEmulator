@@ -6,16 +6,9 @@
 #- last update : 2023/10/24
 #This emulator is based from datagrid of atmospheric transparencies extracted from libradtran
 
-import os
-from pathlib import Path
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
-import pickle
-from importlib.resources import files
-
 from simpleemulator.simpleatmemulator import SimpleAtmEmulator,find_data_path,final_path_data
 from simpleemulator.simpleatmemulator import Dict_Of_sitesAltitudes,Dict_Of_sitesPressures
-
 
 
 class AtmPressEmulator(SimpleAtmEmulator):
