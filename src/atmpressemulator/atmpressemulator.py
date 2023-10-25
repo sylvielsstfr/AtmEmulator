@@ -49,11 +49,24 @@ class AtmPressEmulator(SimpleAtmEmulator):
 
 
     def GetRayleighTransparencyArray(self,wl,am):
+        """
+        Scaling of optical depth by the term P/Pref, where P is the true pressure
+        and Pref is the reference pressure for the site.
+        """
         return np.power(super().GetRayleighTransparencyArray(wl,am),self.pressureratio)
     
 
-    def GetO2absTransparencyArray(self,wl,am):
-        return np.power(super().GetO2absTransparencyArray(wl,am),self.pressureratio)
+    def GetO2absTransparencyArray(self,wl,am,satpower=1.1):
+        """
+        Correction of O2 absorption profile by the P/Pref with a power estimated
+        from libradtran simulations, where P is the true pressure
+        and Pref is the reference pressure for the site.
+
+        Comparing LSST site with pressure at Mauna Kea and Sea Level show the satpower
+        = 1.1 is appropriate.
+        """
+        return np.power(super().GetO2absTransparencyArray(wl,am),
+                        np.power(self.pressureratio,satpower))
     
 
 def usage():
