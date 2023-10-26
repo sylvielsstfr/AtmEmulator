@@ -72,7 +72,7 @@ def _interpolatedfunctwoargs(x1,x2,func):
     return func(pts_stacked)
 
 @partial(jit, static_argnums=2)
-def _interpolatedfunctwoargs_v2(x1,x2,func):
+def _interpolatedfunctwoargs_scalar(x1,x2,func):
     pts = (x1,x2)
     pts_stacked = jnp.array([pts])
     return func(pts_stacked)[0]
@@ -81,19 +81,34 @@ def _interpolatedfunctwoargs_v2(x1,x2,func):
 # specify arguments https://stackoverflow.com/questions/66445754/understanding-jax-argnums-parameter-in-its-gradient-function
 _jac__interpolatedfunctwoargs = jacfwd(_interpolatedfunctwoargs,argnums=(0, 1))
 
-# below grad not working
-_jac__interpolatedfunctwoargs_v2 = jacfwd(_interpolatedfunctwoargs_v2,argnums=(0, 1))
+# all differentiations wrt a scalar function of two arguments
+_dfdx_xy = grad(_interpolatedfunctwoargs_scalar,argnums=0)
+_dfdy_xy = grad(_interpolatedfunctwoargs_scalar,argnums=1)
+_d2fdxx_xy = grad(_dfdx_xy,argnums=0)
+_d2fdxy_xy = grad(_dfdx_xy,argnums=1)
+_d2fdyx_xy = grad(_dfdy_xy,argnums=0)
+_d2fdyy_xy = grad(_dfdy_xy,argnums=1)
 
 
 @partial(jit, static_argnums=3)
-def _interpolatedfuncthreeargs(x1,x2,x3,func):
-    #pts = [ (the_x1,x2,x3) for the_x1 in x1 ]
-    #pts = jnp.array(pts)
-    # 3D not working
-    pts = jnp.meshgrid(x1,x2,x3)
-    pts_stacked = jnp.dstack(pts)
-    return func(pts)
+def _interpolatedfuncthreeargs_scalar(x1,x2,x3,func):
+    pts = (x1,x2,x3)
+    pts_stacked = jnp.dstack([pts])
+    return func(pts)[0]
 
+# all differentiations wrt a scalar function of two arguments
+_dfdx_xyz = grad(_interpolatedfuncthreeargs_scalar,argnums=0)
+_dfdy_xyz = grad(_interpolatedfuncthreeargs_scalar,argnums=1)
+_dfdz_xyz = grad(_interpolatedfuncthreeargs_scalar,argnums=2)
+_d2fdxx_xyz = grad(_dfdx_xyz,argnums=0)
+_d2fdxy_xyz = grad(_dfdx_xyz,argnums=1)
+_d2fdxz_xyz = grad(_dfdx_xyz,argnums=2)
+_d2fdyx_xyz = grad(_dfdy_xyz,argnums=0)
+_d2fdyy_xyz = grad(_dfdy_xyz,argnums=1)
+_d2fdyz_xyz = grad(_dfdy_xyz,argnums=2)
+_d2fdzx_xyz = grad(_dfdz_xyz,argnums=0)
+_d2fdzy_xyz = grad(_dfdz_xyz,argnums=1)
+_d2fdzz_xyz = grad(_dfdz_xyz,argnums=2)
 
 
 class SimpleDiffAtmEmulator:
@@ -246,8 +261,6 @@ class SimpleDiffAtmEmulator:
         #pts_stacked = jnp.dstack(pts)
         return self.func_O2abs(pts_stacked)
     
-
-    
     def GetPWVabsTransparencyArray(self,wl,am,pwv):
         pts = [ (the_wl,am,pwv) for the_wl in wl ]
         pts_stacked = jnp.array(pts)
@@ -264,7 +277,6 @@ class SimpleDiffAtmEmulator:
         return self.func_OZabs(pts_stacked)
     
 
-    
 
 
     def GetGriddedTransparencies(self,wl,am,pwv,oz,flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True):
@@ -376,23 +388,20 @@ class SimpleDiffAtmEmulator:
     def GetRayleighTransparency2D(self,wl,am):
         return _interpolatedfunctwoargs(wl,am,self.func_rayleigh)
     
-    def GetRayleighTransparency2D_v2(self,wl,am):
-        return _interpolatedfunctwoargs_v2(wl,am,self.func_rayleigh)
-    
-    def DiffGetRayleighTransparency2D(self,wl,am):
-        return _jac__interpolatedfunctwoargs(wl,am,self.func_rayleigh)
-    
-    def DiffGetRayleighTransparency2D_v2(self,wl,am):
-        return _jac__interpolatedfunctwoargs_v2(wl,am,self.func_rayleigh)
-    
     def GetO2absTransparency2D(self,wl,am):
         return _interpolatedfunctwoargs(wl,am,self.func_O2abs)
     
-    def GetPWVabsTransparency3D(self,wl,am,pwv):
-        return _interpolatedfuncthreeargs(wl,am,pwv,self.func_PWVabs)
+    def GetRayleighTransparencyScalar(self,wl,am):
+        return _interpolatedfunctwoargs_scalar(wl,am,self.func_rayleigh)
+     
+    def DiffGetRayleighTransparencyScalar(self,wl,am):
+        return _dfdx_xy(wl,am,self.func_rayleigh)
     
-    def GetOZTransparency3D(self,wl,am,pwv):
-        return _interpolatedfuncthreeargs(wl,am,pwv,self.func_OZabs)
+
+    
+   
+    
+    
     
 
 
