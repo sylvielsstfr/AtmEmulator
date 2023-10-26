@@ -11,6 +11,8 @@ import sys,getopt
 from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
+from jax import grad, jit, vmap,jacobian,jacfwd
+from functools import partial
 from diffemulator.interpolate import RegularGridInterpolator
 #from interpolate import RegularGridInterpolator
 import pickle
@@ -61,6 +63,34 @@ Dict_Of_sitesAltitudes = {'LSST':2.663,
                           'OMK':4.205,
                           'OSL':0,
                            }
+
+
+@partial(jit, static_argnums=2)
+def _interpolatedfunctwoargs(x1,x2,func):
+    pts = jnp.meshgrid(x1,x2)
+    pts_stacked = jnp.dstack(pts)
+    return func(pts_stacked)
+
+@partial(jit, static_argnums=2)
+def _interpolatedfunctwoargs_v2(x1,x2,func):
+    pts = (x1,x2)
+    pts_stacked = jnp.array([pts])
+    return func(pts_stacked)[0]
+
+_jac__interpolatedfunctwoargs = jacfwd(_interpolatedfunctwoargs,argnums=(0, 1))
+
+# below grad not working
+_jac__interpolatedfunctwoargs_v2 = jacfwd(_interpolatedfunctwoargs_v2,argnums=(0, 1))
+
+
+@partial(jit, static_argnums=3)
+def _interpolatedfuncthreeargs(x1,x2,x3,func):
+    #pts = [ (the_x1,x2,x3) for the_x1 in x1 ]
+    #pts = jnp.array(pts)
+    pts = jnp.meshgrid(x1,x2,x3)
+    pts_stacked = jnp.dstack(pts)
+    return func(pts)
+
 
 
 class SimpleDiffAtmEmulator:
@@ -155,8 +185,7 @@ class SimpleDiffAtmEmulator:
         self.func_O2abs = RegularGridInterpolator((self.WL,self.AIRMASS),self.data_O2abs)
         self.func_PWVabs = RegularGridInterpolator((self.WL,self.AIRMASS,self.PWV),self.data_PWVabs)
         self.func_OZabs = RegularGridInterpolator((self.WL,self.AIRMASS,self.OZ),self.data_OZabs)
-
-        
+    
         
     def loadtables(self):
         """
@@ -224,7 +253,10 @@ class SimpleDiffAtmEmulator:
         pts = jnp.array(pts)
         return self.func_OZabs(pts)
     
-        
+
+    
+
+
     def GetGriddedTransparencies(self,wl,am,pwv,oz,flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True):
         """
         Emulation of libradtran simulated transparencies. Decomposition of the
@@ -332,6 +364,30 @@ class SimpleDiffAtmEmulator:
             
         return transm
     
+    def GetRayleighTransparency(self,wl,am):
+        return _interpolatedfunctwoargs(wl,am,self.func_rayleigh)
+    
+    def GetRayleighTransparency_v2(self,wl,am):
+        return _interpolatedfunctwoargs_v2(wl,am,self.func_rayleigh)
+    
+    def DiffGetRayleighTransparency(self,wl,am):
+        return _jac__interpolatedfunctwoargs(wl,am,self.func_rayleigh)
+    
+    def DiffGetRayleighTransparency_v2(self,wl,am):
+        return _jac__interpolatedfunctwoargs_v2(wl,am,self.func_rayleigh)
+    
+    def GetO2absTransparency(self,wl,am):
+        return _interpolatedfunctwoargs(wl,am,self.func_O2abs)
+    
+    def GetPWVabsTransparency(self,wl,am,pwv):
+        return _interpolatedfuncthreeargs(wl,am,pwv,self.func_PWVabs)
+    
+    def GetOZTransparency(self,wl,am,pwv):
+        return _interpolatedfuncthreeargs(wl,am,pwv,self.func_OZabs)
+    
+
+
+
 
 
 def usage():
