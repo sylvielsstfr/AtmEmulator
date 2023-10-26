@@ -77,6 +77,8 @@ def _interpolatedfunctwoargs_v2(x1,x2,func):
     pts_stacked = jnp.array([pts])
     return func(pts_stacked)[0]
 
+
+# specify arguments https://stackoverflow.com/questions/66445754/understanding-jax-argnums-parameter-in-its-gradient-function
 _jac__interpolatedfunctwoargs = jacfwd(_interpolatedfunctwoargs,argnums=(0, 1))
 
 # below grad not working
@@ -87,6 +89,7 @@ _jac__interpolatedfunctwoargs_v2 = jacfwd(_interpolatedfunctwoargs_v2,argnums=(0
 def _interpolatedfuncthreeargs(x1,x2,x3,func):
     #pts = [ (the_x1,x2,x3) for the_x1 in x1 ]
     #pts = jnp.array(pts)
+    # 3D not working
     pts = jnp.meshgrid(x1,x2,x3)
     pts_stacked = jnp.dstack(pts)
     return func(pts)
@@ -231,27 +234,34 @@ class SimpleDiffAtmEmulator:
             
     def GetRayleighTransparencyArray(self,wl,am):
         pts = [ (the_wl,am) for the_wl in wl ]
-        pts = jnp.array(pts)
-        return self.func_rayleigh(pts)
-    
+        pts_stacked = jnp.array(pts)
+        #pts = jnp.meshgrid(wl,am)
+        #pts_stacked = jnp.dstack(pts)
+        return self.func_rayleigh(pts_stacked)
     
     def GetO2absTransparencyArray(self,wl,am):
         pts = [ (the_wl,am) for the_wl in wl ]
-        pts = jnp.array(pts)
-        return self.func_O2abs(pts)
+        pts_stacked = jnp.array(pts)
+        #pts = jnp.meshgrid(wl,am)
+        #pts_stacked = jnp.dstack(pts)
+        return self.func_O2abs(pts_stacked)
     
 
     
     def GetPWVabsTransparencyArray(self,wl,am,pwv):
         pts = [ (the_wl,am,pwv) for the_wl in wl ]
-        pts = jnp.array(pts)
-        return self.func_PWVabs(pts)
+        pts_stacked = jnp.array(pts)
+        #pts = jnp.meshgrid(wl,am,pwv)
+        #pts_stacked = jnp.dstack(pts)
+        return self.func_PWVabs(pts_stacked)
     
     
     def GetOZabsTransparencyArray(self,wl,am,oz):
         pts = [ (the_wl,am,oz) for the_wl in wl ]
-        pts = jnp.array(pts)
-        return self.func_OZabs(pts)
+        pts_stacked = jnp.array(pts)
+        #pts = jnp.meshgrid(wl,am,oz)
+        #pts_stacked = jnp.dstack(pts)
+        return self.func_OZabs(pts_stacked)
     
 
     
@@ -278,7 +288,6 @@ class SimpleDiffAtmEmulator:
         
         """
         
-
         if flagRayleigh:
             transm = self.GetRayleighTransparencyArray(wl,am)
         else:
@@ -364,25 +373,25 @@ class SimpleDiffAtmEmulator:
             
         return transm
     
-    def GetRayleighTransparency(self,wl,am):
+    def GetRayleighTransparency2D(self,wl,am):
         return _interpolatedfunctwoargs(wl,am,self.func_rayleigh)
     
-    def GetRayleighTransparency_v2(self,wl,am):
+    def GetRayleighTransparency2D_v2(self,wl,am):
         return _interpolatedfunctwoargs_v2(wl,am,self.func_rayleigh)
     
-    def DiffGetRayleighTransparency(self,wl,am):
+    def DiffGetRayleighTransparency2D(self,wl,am):
         return _jac__interpolatedfunctwoargs(wl,am,self.func_rayleigh)
     
-    def DiffGetRayleighTransparency_v2(self,wl,am):
+    def DiffGetRayleighTransparency2D_v2(self,wl,am):
         return _jac__interpolatedfunctwoargs_v2(wl,am,self.func_rayleigh)
     
-    def GetO2absTransparency(self,wl,am):
+    def GetO2absTransparency2D(self,wl,am):
         return _interpolatedfunctwoargs(wl,am,self.func_O2abs)
     
-    def GetPWVabsTransparency(self,wl,am,pwv):
+    def GetPWVabsTransparency3D(self,wl,am,pwv):
         return _interpolatedfuncthreeargs(wl,am,pwv,self.func_PWVabs)
     
-    def GetOZTransparency(self,wl,am,pwv):
+    def GetOZTransparency3D(self,wl,am,pwv):
         return _interpolatedfuncthreeargs(wl,am,pwv,self.func_OZabs)
     
 
