@@ -38,6 +38,8 @@ dev = [
     "numpy", # Used generategrids
     "scipy", # Used in atmemulator for interpolation
     "astropy", # to open fits file in pyextinction
+    "jax", # for using the differential emulator implemented in jax
+    "jaxlib", # for using the differential emulator implemented in jax
     "asv==0.5.1", # Used to compute performance benchmarks
 ]
 
@@ -61,7 +63,7 @@ omit=["src/atmemulator/_version.py"]
 
 [tool.setuptools.packages.find]
 where = ["src"]  # list of folders that contain the packages (["."] by default)
-include = ["atmemulator","simpleemulator","atmpressemulator","pyextinction"]  # package names should match these glob patterns (["*"] by default)
+include = ["atmemulator","simpleemulator","atmpressemulator","pyextinction","diffemulator"]  # package names should match these glob patterns (["*"] by default)
 exclude = ["my_package.tests*"]  # exclude packages matching these glob patterns (empty by default)
 namespaces = true  # to activate scanning PEP 420 namespaces (true by default)
 

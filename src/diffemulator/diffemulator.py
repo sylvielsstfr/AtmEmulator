@@ -3,14 +3,16 @@
 #- author : Sylvie Dagoret-Campagne
 #- affiliation : IJCLab/IN2P3/CNRS
 #- creation date : 2023/10/25
-#- last update : 2023/10/25
+#- last update : 2023/10/26
 # This emulator is based from datagrid of atmospheric transparencies extracted from libradtran
 
 import os
 import sys,getopt
 from pathlib import Path
+import jax.numpy as jnp
 import numpy as np
-from interpolate import RegularGridInterpolator
+from diffemulator.interpolate import RegularGridInterpolator
+#from interpolate import RegularGridInterpolator
 import pickle
 
 
@@ -36,6 +38,7 @@ Dict_Of_sitesPressures = {'LSST':731.50433,
 # about datapath
 
 dir_path_data = os.path.join(os.path.dirname(__file__), 'data')
+final_path_data = dir_path_data
 
 file_data_dict = {
     "info" :"atmospherictransparencygrid_params.pickle",
@@ -45,42 +48,7 @@ file_data_dict = {
     "data_ozabs" : "atmospherictransparencygrid_OZabs.npy",
 }
 
-def find_data_path():
-    """
-    Search the path for the atmospheric emulator.
-    Normaly there is no need to debug where are the data given the dir_path_data is
-    the good place to find the data. It is left for debug purpose
-    """
-    
-    print("\t - dir_path_data ",dir_path_data)
-    
-    dir_file_abspath = os.path.dirname(os.path.abspath(__file__))
-    print("dir_file_abspath = ",dir_file_abspath)
-
-    dir_file_realpath = os.path.dirname(os.path.realpath(__file__))
-    print("dir_file_realpath = ",dir_file_realpath)
-
-    dir_file_sys = Path(sys.path[0])
-    print("Path_syspath = ",dir_file_sys)
-
-    dir_file_dirname = os.path.dirname(__file__) 
-    print("file_dirname = ",dir_file_dirname)
-    
-    #path_data = dir_file_realpath + dir_path_data
-    path_data = dir_path_data
-    
-    for key, filename in file_data_dict.items():
-        file_path = os.path.join(path_data ,  filename)
-        flag_found = os.path.isfile(file_path)  
-        if flag_found :
-            print(f"found data file {file_path}")
-        else:
-            print(f">>>>>>>>>> NOT found data file {file_path} in dir {path_data}")
-            
-    return path_data 
-
 # inal_path_data is defined in case dir_path_data_data would not be the right data path 
-final_path_data = dir_path_data
 
 
 
@@ -152,6 +120,7 @@ class SimpleDiffAtmEmulator:
         self.WLBIN = self.info_params["WLBIN"]
         self.NWLBIN = self.info_params['NWLBIN']
         self.WL = self.info_params['WL']
+        self.WL = jnp.array(self.WL)
         self.OBS = self.info_params['OBS']
         
         self.AIRMASSMIN = self.info_params['AIRMASSMIN']
@@ -159,12 +128,14 @@ class SimpleDiffAtmEmulator:
         self.NAIRMASS = self.info_params['NAIRMASS']
         self.DAIRMASS = self.info_params['DAIRMASS']
         self.AIRMASS = self.info_params['AIRMASS']
+        self.AIRMASS = jnp.array(self.AIRMASS)
         
         self.PWVMIN = self.info_params['PWVMIN']
         self.PWVMAX = self.info_params['PWVMAX'] 
         self.NPWV = self.info_params['NPWV']
         self.DPWV = self.info_params['DPWV'] 
         self.PWV = self.info_params['PWV']
+        self.PWV = jnp.array(self.PWV)
         
         
         self.OZMIN =  self.info_params['OZMIN']
@@ -172,15 +143,14 @@ class SimpleDiffAtmEmulator:
         self.NOZ = self.info_params['NOZ']
         self.DOZ =  self.info_params['DOZ'] 
         self.OZ = self.info_params['OZ']
+        self.OZ = jnp.array(self.OZ)
         
-       
-
 
         # constant parameters defined for aerosol formula
         self.lambda0 = 550.
         self.tau0 = 1.
 
-        # interpolation is done over training dataset
+        # interpolation functions are build on the loaded dataset
         self.func_rayleigh = RegularGridInterpolator((self.WL,self.AIRMASS),self.data_rayleigh)
         self.func_O2abs = RegularGridInterpolator((self.WL,self.AIRMASS),self.data_O2abs)
         self.func_PWVabs = RegularGridInterpolator((self.WL,self.AIRMASS,self.PWV),self.data_PWVabs)
@@ -190,7 +160,8 @@ class SimpleDiffAtmEmulator:
         
     def loadtables(self):
         """
-        Load files into grid arrays
+        Load files into grid arrays.
+        The data to be interpolated are converted in jax arrays
         """
         
         filename=os.path.join(self.path,self.fn_info)     
@@ -201,22 +172,26 @@ class SimpleDiffAtmEmulator:
         filename=os.path.join(self.path,self.fn_rayleigh)
         with open(filename, 'rb') as f:
             self.data_rayleigh = np.load(f)
+            self.data_rayleigh = jnp.array(self.data_rayleigh)
             
             
         filename=os.path.join(self.path,self.fn_O2abs)
         with open(filename, 'rb') as f:
             self.data_O2abs = np.load(f)
+            self.data_O2abs = jnp.array(self.data_O2abs)
             
       
         filename=os.path.join(self.path,self.fn_PWVabs)
         with open(filename, 'rb') as f:
             self.data_PWVabs = np.load(f)
+            self.data_PWVabs = jnp.array(self.data_PWVabs)
             
         
             
         filename=os.path.join(self.path,self.fn_OZabs)
         with open(filename, 'rb') as f:
             self.data_OZabs = np.load(f)
+            self.data_OZabs = jnp.array(self.data_OZabs)
             
       
             
@@ -227,26 +202,26 @@ class SimpleDiffAtmEmulator:
             
     def GetRayleighTransparencyArray(self,wl,am):
         pts = [ (the_wl,am) for the_wl in wl ]
-        pts = np.array(pts)
+        pts = jnp.array(pts)
         return self.func_rayleigh(pts)
     
     
     def GetO2absTransparencyArray(self,wl,am):
         pts = [ (the_wl,am) for the_wl in wl ]
-        pts = np.array(pts)
+        pts = jnp.array(pts)
         return self.func_O2abs(pts)
     
 
     
     def GetPWVabsTransparencyArray(self,wl,am,pwv):
         pts = [ (the_wl,am,pwv) for the_wl in wl ]
-        pts = np.array(pts)
+        pts = jnp.array(pts)
         return self.func_PWVabs(pts)
     
     
     def GetOZabsTransparencyArray(self,wl,am,oz):
         pts = [ (the_wl,am,oz) for the_wl in wl ]
-        pts = np.array(pts)
+        pts = jnp.array(pts)
         return self.func_OZabs(pts)
     
         
@@ -275,7 +250,7 @@ class SimpleDiffAtmEmulator:
         if flagRayleigh:
             transm = self.GetRayleighTransparencyArray(wl,am)
         else:
-            transm = np.ones(len(wl))
+            transm = jnp.ones(len(wl))
             
         if flagO2abs:
             transm *= self.GetO2absTransparencyArray(wl,am)
@@ -305,16 +280,16 @@ class SimpleDiffAtmEmulator:
         
         """
           
-        wl = np.array(wl)
+        wl = jnp.array(wl)
         NWL=wl.shape[0]
         
-        transm = np.ones(NWL)
+        transm = jnp.ones(NWL)
         
         if ncomp <=0:
             return transm
         else:
-            taus=np.array(taus)
-            betas=np.array(betas)
+            taus=jnp.array(taus)
+            betas=jnp.array(betas)
             
             NTAUS=taus.shape[0]
             NBETAS=betas.shape[0]
@@ -323,8 +298,8 @@ class SimpleDiffAtmEmulator:
             assert ncomp<=NBETAS     
         
             for icomp in range(ncomp):            
-                exponent = (taus[icomp]/self.tau0)*np.exp(betas[icomp]*np.log(wl/self.lambda0))*am
-                transm *= np.exp(-exponent)
+                exponent = (taus[icomp]/self.tau0)*jnp.exp(betas[icomp]*jnp.log(wl/self.lambda0))*am
+                transm *= jnp.exp(-exponent)
             
             return transm
         
@@ -383,7 +358,7 @@ def run(obs_str):
     # create emulator  
     #emul = SimpleAtmEmulator(path = path_data)
     emul = SimpleDiffAtmEmulator(obs_str=obs_str)
-    wl = [400.,800.,900.]
+    wl = jnp.array([400.,800.,900.])
     am=1.2
     pwv =4.0
     oz=300.
