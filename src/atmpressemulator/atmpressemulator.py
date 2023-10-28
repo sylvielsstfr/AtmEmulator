@@ -56,7 +56,7 @@ class AtmPressEmulator(SimpleAtmEmulator):
         return np.power(super().GetRayleighTransparencyArray(wl,am),self.pressureratio)
     
 
-    def GetO2absTransparencyArray(self,wl,am,satpower=1.1):
+    def GetO2absTransparencyArray(self,wl,am,satpower=1.16306918):
         """
         Correction of O2 absorption profile by the P/Pref with a power estimated
         from libradtran simulations, where P is the true pressure
