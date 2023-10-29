@@ -11,7 +11,8 @@ import sys,getopt
 from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
-from jax import grad, jit, vmap,jacobian,jacfwd, hessian
+from jax import grad, jit, vmap,jacobian,jacfwd, hessian,lax
+import jax.numpy as jnp
 from functools import partial
 from diffemulator.interpolate import RegularGridInterpolator
 #from interpolate import RegularGridInterpolator
@@ -206,7 +207,29 @@ class SimpleDiffAtmEmulator:
         self.func_PWVabs = RegularGridInterpolator((self.WL,self.AIRMASS,self.PWV),self.data_PWVabs)
         self.func_OZabs = RegularGridInterpolator((self.WL,self.AIRMASS,self.OZ),self.data_OZabs)
     
-        
+        # initialise flag that activate
+        self.init_flagprocesses()
+
+
+    def init_flagprocesses(self):
+        self.dict_flags = dict(flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=True)
+        self.put_individualflags()
+
+    def put_individualflags(self):    
+        self.flagRayleigh = self.dict_flags['flagRayleigh']
+        self.flagO2abs = self.dict_flags['flagO2abs']
+        self.flagPWVabs = self.dict_flags['flagPWVabs']
+        self.flagOZabs = self.dict_flags['flagOZabs']
+        self.flagAerosols = self.dict_flags['flagAerosols']
+
+    def get_flagprocesses(self):
+        return self.dict_flags
+    
+    def set_flagprocesses(self,the_dict):
+        self.dict_flags = the_dict
+        self.put_individualflags()
+
+
     def loadtables(self):
         """
         Load files into grid arrays.
@@ -286,7 +309,7 @@ class SimpleDiffAtmEmulator:
         return self.func_OZabs(pts_stacked)
     
 
-    def GetGriddedTransparenciesScalar(self,wl,am,pwv,oz,flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True):
+    def GetGriddedTransparenciesScalar(self,wl,am,pwv,oz):
         """
         Emulation of libradtran simulated transparencies. Decomposition of the
         total transmission in different processes:
@@ -306,23 +329,18 @@ class SimpleDiffAtmEmulator:
         -  Transmission at a given point (wl,am,pwv,oz)
         
         """
-        if flagRayleigh:
-            transm = self.GetRayleighTransparencyScalar(wl,am)
-        else:
-            transm = 1.0
-            
-        if flagO2abs:
-            transm *= self.GetO2absTransparencyScalar(wl,am)
-            
-        if flagPWVabs:
-            transm *= self.GetPWVabsTransparencyScalar(wl,am,pwv)
-            
-        if flagOZabs:
-            transm *= self.GetOZabsTransparencyScalar(wl,am,oz)
-            
+        
+        
+        full_transm1 = lambda   x , y : 1.0
+        full_transm2  = lambda x , y , z : 1.0
+
+        transm = lax.cond(self.flagRayleigh,self.GetRayleighTransparencyScalar,full_transm1,wl,am)
+        transm *= lax.cond(self.flagO2abs,self.GetO2absTransparencyScalar,full_transm1,wl,am)
+        transm *= lax.cond(self.flagPWVabs,self.GetPWVabsTransparencyScalar,full_transm2,wl,am,pwv)
+        transm *= lax.cond(self.flagOZabs,self.GetOZabsTransparencyScalar,full_transm2,wl,am,oz)    
         return transm
 
-    def GetGriddedTransparencies1DArray(self,wl,am,pwv,oz,flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True):
+    def GetGriddedTransparencies1DArray(self,wl,am,pwv,oz):
         """
         Emulation of libradtran simulated transparencies. Decomposition of the
         total transmission in different processes:
@@ -342,61 +360,42 @@ class SimpleDiffAtmEmulator:
         - 1D array of atmospheric transmission (save size as wl)
         
         """
-        if flagRayleigh:
-            transm = self.GetRayleighTransparency1DArray(wl,am)
-        else:
-            transm = jnp.ones(len(wl))
-            
-        if flagO2abs:
-            transm *= self.GetO2absTransparency1DArray(wl,am)
-            
-        if flagPWVabs:
-            transm *= self.GetPWVabsTransparency1DArray(wl,am,pwv)
-            
-        if flagOZabs:
-            transm *= self.GetOZabsTransparency1DArray(wl,am,oz)
-            
+
+
+        full_transm1 = lambda   x , y : jnp.ones(len(wl)) 
+        full_transm2  = lambda x , y , z : jnp.ones(len(wl)) 
+
+
+        transm = lax.cond(self.flagRayleigh,self.GetRayleighTransparency1DArray,full_transm1,wl,am)
+        transm *= lax.cond(self.flagO2abs,self.GetO2absTransparency1DArray,full_transm1,wl,am)
+        transm *= lax.cond(self.flagPWVabs,self.GetPWVabsTransparency1DArray,full_transm2,wl,am,pwv)
+        transm *= lax.cond(self.flagOZabs,self.GetOZabsTransparency1DArray,full_transm2,wl,am,oz)    
         return transm
+
     
 
-    def GetAerosolsTransparenciesScalar(self,wl,am,ncomp,taus=None,betas=None):
+    def GetAerosolsTransparenciesScalar(self,wl,am,tau=0,beta=-1):
         """
         Compute transmission due to aerosols:
         
         inputs:
         - wl : wavelength array
         - am : the airmass
-        - ncomp : the number of aerosol components
-        - taus : the vertical aerosol depth of each component at lambda0 vavelength
-        - betas : the angstrom exponent. Must be negativ.
+        - tau : the vertical aerosol depth of each component at lambda0 vavelength
+        - beta : the angstrom exponent. Must be negativ.
         
         
         outputs:
         - Value of the transmission
         
         """
-        
-        transm = 1.0
-        
-        if ncomp <=0:
-            return transm
-        else:
-            taus=jnp.array(taus)
-            betas=jnp.array(betas)
+              
+        exponent = (tau/self.tau0)*jnp.exp(beta*jnp.log(wl/self.lambda0))*am
+        transm = jnp.exp(-exponent)
             
-            NTAUS=taus.shape[0]
-            NBETAS=betas.shape[0]
-        
-            assert ncomp<=NTAUS
-            assert ncomp<=NBETAS     
-        
-            for icomp in range(ncomp):            
-                exponent = (taus[icomp]/self.tau0)*jnp.exp(betas[icomp]*jnp.log(wl/self.lambda0))*am
-                transm *= jnp.exp(-exponent)
+        return transm
             
-            return transm
-            
-    def GetAerosolsTransparencies1DArray(self,wl,am,ncomp,taus=None,betas=None):
+    def GetAerosolsTransparencies1DArray(self,wl,am,tau,beta):
         """
         Compute transmission due to aerosols:
         
@@ -416,28 +415,15 @@ class SimpleDiffAtmEmulator:
         wl = jnp.array(wl)
         NWL=wl.shape[0]
         
-        transm = jnp.ones(NWL)
-        
-        if ncomp <=0:
-            return transm
-        else:
-            taus=jnp.array(taus)
-            betas=jnp.array(betas)
+                   
+        exponent = (tau/self.tau0)*jnp.exp(beta*jnp.log(wl/self.lambda0))*am
+        transm = jnp.exp(-exponent)
             
-            NTAUS=taus.shape[0]
-            NBETAS=betas.shape[0]
-        
-            assert ncomp<=NTAUS
-            assert ncomp<=NBETAS     
-        
-            for icomp in range(ncomp):            
-                exponent = (taus[icomp]/self.tau0)*jnp.exp(betas[icomp]*jnp.log(wl/self.lambda0))*am
-                transm *= jnp.exp(-exponent)
-            
-            return transm
+        return transm
         
         
-    def GetAllTransparenciesScalar(self,wl,am,pwv,oz,ncomp=0, taus=None, betas=None, flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=False):
+    def GetAllTransparenciesScalar(self,wl,am,pwv,oz,tau=0, beta=-1): 
+                                   
         """
         Combine interpolated libradtran transmission with analytical expression for the
         aerosols
@@ -455,18 +441,16 @@ class SimpleDiffAtmEmulator:
         - 1D array of atmospheric transmission (save size as wl)
         
         """
+
         
-        transm = self.GetGriddedTransparenciesScalar(wl,am,pwv,oz,flagRayleigh=flagRayleigh,flagO2abs=flagO2abs,flagPWVabs=flagPWVabs,flagOZabs=flagOZabs)
+        full_transm  = lambda x , y , z ,t : 1.0
         
-        if flagAerosols:
-            transmaer = self.GetAerosolsTransparenciesScalar(wl,am,ncomp,taus,betas)
-            transm *=transmaer
-           
-            
+        transm = self.GetGriddedTransparenciesScalar(wl,am,pwv,oz)
+        transm *=lax.cond(self.flagAerosols,self.GetAerosolsTransparenciesScalar,full_transm ,wl,am,tau,beta)  
         return transm
     
 
-    def GetAllTransparencies1DArray(self,wl,am,pwv,oz,ncomp=0, taus=None, betas=None, flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=False):
+    def GetAllTransparencies1DArray(self,wl,am,pwv,oz,tau=0, beta=-1):
         """
         Combine interpolated libradtran transmission with analytical expression for the
         aerosols
@@ -485,13 +469,11 @@ class SimpleDiffAtmEmulator:
         
         """
         
-        transm = self.GetGriddedTransparencies1DArray(wl,am,pwv,oz,flagRayleigh=flagRayleigh,flagO2abs=flagO2abs,flagPWVabs=flagPWVabs,flagOZabs=flagOZabs)
-        
-        if flagAerosols:
-            transmaer = self.GetAerosolsTransparencies1DArray(wl,am,ncomp,taus,betas)
-            transm *=transmaer
-           
-            
+        full_transm  = lambda x , y , z ,t : jnp.ones(len(wl))  
+
+        transm = self.GetGriddedTransparencies1DArray(wl,am,pwv,oz)
+        transmaer = lax.cond(self.flagAerosols,self.GetAerosolsTransparencies1DArray,full_transm,wl,am,tau,beta)
+        transm *=transmaer
         return transm
 
     # vectorize scalar functions along wl axis
@@ -510,14 +492,15 @@ class SimpleDiffAtmEmulator:
     def vect1d_Griddedtransparency(self,wl,am,pwv,oz):
         return jit(vmap(self.GetGriddedTransparenciesScalar,in_axes=(0,None,None,None)))(wl,am,pwv,oz)
 
-    @partial(jit, static_argnums=(2,3,4))
-    def vect1d_Aerosolstransparency(self,wl,am,ncomp,taus=None,betas=None):
-        return jit(vmap(self.GetAerosolsTransparenciesScalar,in_axes=(0,None,None,None,None)))(wl,am,ncomp,taus,betas)
 
-    @partial(jit, static_argnums=(4,5,6,7,8,9,10,11))
-    def vect1d_Alltransparencies(self,wl,am,pwv,oz,ncomp=0, taus=None, betas=None, flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=False):
+    def vect1d_Aerosolstransparency(self,wl,am,tau=0,beta=-1):
+        return jit(vmap(self.GetAerosolsTransparenciesScalar,in_axes=(0,None,None,None)))(wl,am,tau,beta)
+
+    def vect1d_Alltransparencies(self,wl,am,pwv,oz,tau=0,beta=-1):                   
         return vmap(self.GetAllTransparenciesScalar,
-                        in_axes=(0,None,None,None,None,None,None,None,None,None,None,None))(wl,am,pwv,oz,ncomp, taus, betas, flagRayleigh,flagO2abs,flagPWVabs,flagOZabs,flagAerosols)
+                        in_axes=(0,None,None,None,None,None))(wl,am,pwv,oz, tau, beta)
+                                    
+                                    
 
 
 
