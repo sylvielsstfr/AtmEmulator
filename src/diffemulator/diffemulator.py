@@ -11,7 +11,7 @@ import sys,getopt
 from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
-from jax import grad, jit, vmap,jacobian,jacfwd
+from jax import grad, jit, vmap,jacobian,jacfwd, hessian
 from functools import partial
 from diffemulator.interpolate import RegularGridInterpolator
 #from interpolate import RegularGridInterpolator
@@ -64,6 +64,8 @@ Dict_Of_sitesAltitudes = {'LSST':2.663,
                           'OSL':0,
                            }
 
+
+ 
 
 @partial(jit, static_argnums=2)
 def _interpolatedfunctwoargs(x1,x2,func):
@@ -218,27 +220,27 @@ class SimpleDiffAtmEmulator:
        
         filename=os.path.join(self.path,self.fn_rayleigh)
         with open(filename, 'rb') as f:
-            self.data_rayleigh = np.load(f)
-            self.data_rayleigh = jnp.array(self.data_rayleigh)
+            self.data_rayleigh = jnp.load(f)
+            #self.data_rayleigh = jnp.array(self.data_rayleigh)
             
             
         filename=os.path.join(self.path,self.fn_O2abs)
         with open(filename, 'rb') as f:
-            self.data_O2abs = np.load(f)
-            self.data_O2abs = jnp.array(self.data_O2abs)
+            self.data_O2abs = jnp.load(f)
+            #self.data_O2abs = jnp.array(self.data_O2abs)
             
       
         filename=os.path.join(self.path,self.fn_PWVabs)
         with open(filename, 'rb') as f:
-            self.data_PWVabs = np.load(f)
-            self.data_PWVabs = jnp.array(self.data_PWVabs)
+            self.data_PWVabs = jnp.load(f)
+            #self.data_PWVabs = jnp.array(self.data_PWVabs)
             
         
             
         filename=os.path.join(self.path,self.fn_OZabs)
         with open(filename, 'rb') as f:
-            self.data_OZabs = np.load(f)
-            self.data_OZabs = jnp.array(self.data_OZabs)
+            self.data_OZabs = jnp.load(f)
+            #self.data_OZabs = jnp.array(self.data_OZabs)
             
       
             
@@ -246,40 +248,81 @@ class SimpleDiffAtmEmulator:
     #        
     def GetWL(self):
         return self.WL
+    
+    def GetRayleighTransparencyScalar(self,wl,am):
+        pts = jnp.array([(wl,am)])
+        return self.func_rayleigh(pts)[0]
             
-    def GetRayleighTransparencyArray(self,wl,am):
+    def GetRayleighTransparency1DArray(self,wl,am):
         pts = [ (the_wl,am) for the_wl in wl ]
         pts_stacked = jnp.array(pts)
-        #pts = jnp.meshgrid(wl,am)
-        #pts_stacked = jnp.dstack(pts)
         return self.func_rayleigh(pts_stacked)
     
-    def GetO2absTransparencyArray(self,wl,am):
+    def GetO2absTransparencyScalar(self,wl,am):
+        pts = jnp.array([(wl,am)])
+        return self.func_O2abs(pts)[0]
+    
+    def GetO2absTransparency1DArray(self,wl,am):
         pts = [ (the_wl,am) for the_wl in wl ]
         pts_stacked = jnp.array(pts)
-        #pts = jnp.meshgrid(wl,am)
-        #pts_stacked = jnp.dstack(pts)
         return self.func_O2abs(pts_stacked)
     
-    def GetPWVabsTransparencyArray(self,wl,am,pwv):
+    def GetPWVabsTransparencyScalar(self,wl,am,pwv):
+        pts = jnp.array([ (wl,am,pwv) ])
+        return self.func_PWVabs(pts)[0]
+    
+    def GetPWVabsTransparency1DArray(self,wl,am,pwv):
         pts = [ (the_wl,am,pwv) for the_wl in wl ]
         pts_stacked = jnp.array(pts)
-        #pts = jnp.meshgrid(wl,am,pwv)
-        #pts_stacked = jnp.dstack(pts)
         return self.func_PWVabs(pts_stacked)
     
+    def GetOZabsTransparencyScalar(self,wl,am,oz):
+        pts = jnp.array([(wl,am,oz)])
+        return self.func_OZabs(pts)[0]
     
-    def GetOZabsTransparencyArray(self,wl,am,oz):
+    def GetOZabsTransparency1DArray(self,wl,am,oz):
         pts = [ (the_wl,am,oz) for the_wl in wl ]
         pts_stacked = jnp.array(pts)
-        #pts = jnp.meshgrid(wl,am,oz)
-        #pts_stacked = jnp.dstack(pts)
         return self.func_OZabs(pts_stacked)
     
 
+    def GetGriddedTransparenciesScalar(self,wl,am,pwv,oz,flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True):
+        """
+        Emulation of libradtran simulated transparencies. Decomposition of the
+        total transmission in different processes:
+        - Rayleigh scattering
+        - O2 absorption
+        - PWV absorption
+        - Ozone absorption
+        
+        inputs:
+        - wl : wavelength array or list
+        - am :the airmass,
+        - pwv : the precipitable water vapor (mm)
+        - oz : the ozone column depth in Dobson unit
+        - flags to activate or not the individual interaction processes
+        
+        outputs:
+        -  Transmission at a given point (wl,am,pwv,oz)
+        
+        """
+        if flagRayleigh:
+            transm = self.GetRayleighTransparencyScalar(wl,am)
+        else:
+            transm = 1.0
+            
+        if flagO2abs:
+            transm *= self.GetO2absTransparencyScalar(wl,am)
+            
+        if flagPWVabs:
+            transm *= self.GetPWVabsTransparencyScalar(wl,am,pwv)
+            
+        if flagOZabs:
+            transm *= self.GetOZabsTransparencyScalar(wl,am,oz)
+            
+        return transm
 
-
-    def GetGriddedTransparencies(self,wl,am,pwv,oz,flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True):
+    def GetGriddedTransparencies1DArray(self,wl,am,pwv,oz,flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True):
         """
         Emulation of libradtran simulated transparencies. Decomposition of the
         total transmission in different processes:
@@ -299,24 +342,61 @@ class SimpleDiffAtmEmulator:
         - 1D array of atmospheric transmission (save size as wl)
         
         """
-        
         if flagRayleigh:
-            transm = self.GetRayleighTransparencyArray(wl,am)
+            transm = self.GetRayleighTransparency1DArray(wl,am)
         else:
             transm = jnp.ones(len(wl))
             
         if flagO2abs:
-            transm *= self.GetO2absTransparencyArray(wl,am)
+            transm *= self.GetO2absTransparency1DArray(wl,am)
             
         if flagPWVabs:
-            transm *= self.GetPWVabsTransparencyArray(wl,am,pwv)
+            transm *= self.GetPWVabsTransparency1DArray(wl,am,pwv)
             
         if flagOZabs:
-            transm *= self.GetOZabsTransparencyArray(wl,am,oz)
+            transm *= self.GetOZabsTransparency1DArray(wl,am,oz)
             
         return transm
+    
+
+    def GetAerosolsTransparenciesScalar(self,wl,am,ncomp,taus=None,betas=None):
+        """
+        Compute transmission due to aerosols:
+        
+        inputs:
+        - wl : wavelength array
+        - am : the airmass
+        - ncomp : the number of aerosol components
+        - taus : the vertical aerosol depth of each component at lambda0 vavelength
+        - betas : the angstrom exponent. Must be negativ.
+        
+        
+        outputs:
+        - Value of the transmission
+        
+        """
+        
+        transm = 1.0
+        
+        if ncomp <=0:
+            return transm
+        else:
+            taus=jnp.array(taus)
+            betas=jnp.array(betas)
             
-    def GetAerosolsTransparencies(self,wl,am,ncomp,taus=None,betas=None):
+            NTAUS=taus.shape[0]
+            NBETAS=betas.shape[0]
+        
+            assert ncomp<=NTAUS
+            assert ncomp<=NBETAS     
+        
+            for icomp in range(ncomp):            
+                exponent = (taus[icomp]/self.tau0)*jnp.exp(betas[icomp]*jnp.log(wl/self.lambda0))*am
+                transm *= jnp.exp(-exponent)
+            
+            return transm
+            
+    def GetAerosolsTransparencies1DArray(self,wl,am,ncomp,taus=None,betas=None):
         """
         Compute transmission due to aerosols:
         
@@ -357,7 +437,7 @@ class SimpleDiffAtmEmulator:
             return transm
         
         
-    def GetAllTransparencies(self,wl,am,pwv,oz,ncomp=0, taus=None, betas=None, flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=False):
+    def GetAllTransparenciesScalar(self,wl,am,pwv,oz,ncomp=0, taus=None, betas=None, flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=False):
         """
         Combine interpolated libradtran transmission with analytical expression for the
         aerosols
@@ -376,23 +456,77 @@ class SimpleDiffAtmEmulator:
         
         """
         
-        transm = self.GetGriddedTransparencies(wl,am,pwv,oz,flagRayleigh=flagRayleigh,flagO2abs=flagO2abs,flagPWVabs=flagPWVabs,flagOZabs=flagOZabs)
+        transm = self.GetGriddedTransparenciesScalar(wl,am,pwv,oz,flagRayleigh=flagRayleigh,flagO2abs=flagO2abs,flagPWVabs=flagPWVabs,flagOZabs=flagOZabs)
         
         if flagAerosols:
-            transmaer = self.GetAerosolsTransparencies(wl,am,ncomp,taus,betas)
+            transmaer = self.GetAerosolsTransparenciesScalar(wl,am,ncomp,taus,betas)
             transm *=transmaer
            
             
         return transm
     
+
+    def GetAllTransparencies1DArray(self,wl,am,pwv,oz,ncomp=0, taus=None, betas=None, flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=False):
+        """
+        Combine interpolated libradtran transmission with analytical expression for the
+        aerosols
+        
+        inputs:
+        - wl : wavelength array or list
+        - am :the airmass,
+        - pwv : the precipitable water vapor (mm)
+        - oz : the ozone column depth in Dobson unit
+        - ncomp : number of aerosols components,
+        - taus & betas : arrays of parameters for aerosols
+        - flags to activate or not the individual interaction processes
+        
+        outputs:
+        - 1D array of atmospheric transmission (save size as wl)
+        
+        """
+        
+        transm = self.GetGriddedTransparencies1DArray(wl,am,pwv,oz,flagRayleigh=flagRayleigh,flagO2abs=flagO2abs,flagPWVabs=flagPWVabs,flagOZabs=flagOZabs)
+        
+        if flagAerosols:
+            transmaer = self.GetAerosolsTransparencies1DArray(wl,am,ncomp,taus,betas)
+            transm *=transmaer
+           
+            
+        return transm
+
+    # vectorize scalar functions along wl axis
+    def vect1d_Rayleightransparency(self,wl,am):
+        return jit(vmap(self.GetRayleighTransparencyScalar, in_axes=(0, None)))(wl,am)
+    
+    def vect1d_O2abstransparency(self,wl,am):
+        return jit(vmap(self.GetO2absTransparencyScalar,in_axes=(0, None)))(wl,am)
+    
+    def vect1d_H2Oabstransparency(self,wl,am,pwv):
+        return jit(vmap(self.GetPWVabsTransparencyScalar,in_axes=(0,None,None)))(wl,am,pwv)
+
+    def vect1d_OZabstransparency(self,wl,am,oz):
+         return jit(vmap(self.GetOZabsTransparencyScalar,in_axes=(0,None,None)))(wl,am,oz)
+    
+    def vect1d_Griddedtransparency(self,wl,am,pwv,oz):
+        return jit(vmap(self.GetGriddedTransparenciesScalar,in_axes=(0,None,None,None)))(wl,am,pwv,oz)
+
+    @partial(jit, static_argnums=(2,3,4))
+    def vect1d_Aerosolstransparency(self,wl,am,ncomp,taus=None,betas=None):
+        return jit(vmap(self.GetAerosolsTransparenciesScalar,in_axes=(0,None,None,None,None)))(wl,am,ncomp,taus,betas)
+
+    @partial(jit, static_argnums=(4,5,6,7,8,9,10,11))
+    def vect1d_Alltransparencies(self,wl,am,pwv,oz,ncomp=0, taus=None, betas=None, flagRayleigh=True,flagO2abs=True,flagPWVabs=True,flagOZabs=True,flagAerosols=False):
+        return vmap(self.GetAllTransparenciesScalar,
+                        in_axes=(0,None,None,None,None,None,None,None,None,None,None,None))(wl,am,pwv,oz,ncomp, taus, betas, flagRayleigh,flagO2abs,flagPWVabs,flagOZabs,flagAerosols)
+
+
+
     def GetRayleighTransparency2D(self,wl,am):
         return _interpolatedfunctwoargs(wl,am,self.func_rayleigh)
     
     def GetO2absTransparency2D(self,wl,am):
         return _interpolatedfunctwoargs(wl,am,self.func_O2abs)
     
-    def GetRayleighTransparencyScalar(self,wl,am):
-        return _interpolatedfunctwoargs_scalar(wl,am,self.func_rayleigh)
      
     def DiffGetRayleighTransparencyScalar(self,wl,am):
         return _dfdx_xy(wl,am,self.func_rayleigh)
@@ -400,11 +534,6 @@ class SimpleDiffAtmEmulator:
 
     
    
-    
-    
-    
-
-
 
 
 
@@ -436,7 +565,7 @@ def run(obs_str):
     am=1.2
     pwv =4.0
     oz=300.
-    transm = emul.GetAllTransparencies(wl,am,pwv,oz)
+    transm = emul.GetAllTransparencies1DArray(wl,am,pwv,oz)
     print("wavelengths (nm) \t = ",wl)
     print("transmissions    \t = ",transm)
     
