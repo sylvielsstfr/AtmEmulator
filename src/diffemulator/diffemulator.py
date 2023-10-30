@@ -193,7 +193,7 @@ class SimpleDiffAtmEmulator:
         self.OZMAX = self.info_params['OZMAX']
         self.NOZ = self.info_params['NOZ']
         self.DOZ =  self.info_params['DOZ'] 
-        self.OZ = self.info_params['OZ']
+        self.OZ = jnp.float32(self.info_params['OZ'])
         self.OZ = jnp.array(self.OZ)
         
 
@@ -539,6 +539,31 @@ class SimpleDiffAtmEmulator:
 
     def vect2dc_Griddedtransparency(self,wl,am,pwv,oz):
         return jit(vmap(vmap(self.GetGriddedTransparenciesScalar,in_axes=(0, None,None,None)),in_axes=(None,None,None,0)))(wl,am,pwv,oz)
+
+
+    # define the gradients of scalar function
+
+    def grad_Rayleightransparency(self,wl,am):
+        return grad(self.GetRayleighTransparencyScalar,argnums=(0,1))(wl,am)
+    
+    def grad_O2abstransparency(self,wl,am):
+        return grad(self.GetO2absTransparencyScalar,argnums=(0,1))(wl,am)
+
+    def grad_PWVabstransparency(self,wl,am,pwv):
+        return grad(self.GetPWVabsTransparencyScalar,argnums=(0,1,2))(wl,am,pwv)
+    
+    def grad_OZabstransparency(self,wl,am,oz):
+        return grad(self.GetOZabsTransparencyScalar,argnums=(0,1,2))(wl,am,oz)
+
+    def grad_Griddedtransparency(self,wl,am,pwv,oz):
+        return grad(self.GetGriddedTransparenciesScalar,argnums=(0,1,2,3))(wl,am,pwv,oz)
+
+    def grad_Aerosolstransparency(self,wl,am,tau=0,beta=-1):
+        return grad(self.GetAerosolsTransparenciesScalar,argnums=(0,1,2,3))(wl,am,tau,beta)
+
+    def grad_Alltransparencies(self,wl,am,pwv,oz,tau=0,beta=-1): 
+        return grad(self.GetAllTransparenciesScalar,argnums=(0,1,2,3,4,5))(wl,am,pwv,oz,tau,beta)
+
 
 
 
