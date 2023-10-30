@@ -483,7 +483,7 @@ class SimpleDiffAtmEmulator:
     def vect1d_O2abstransparency(self,wl,am):
         return jit(vmap(self.GetO2absTransparencyScalar,in_axes=(0, None)))(wl,am)
     
-    def vect1d_H2Oabstransparency(self,wl,am,pwv):
+    def vect1d_PWVabstransparency(self,wl,am,pwv):
         return jit(vmap(self.GetPWVabsTransparencyScalar,in_axes=(0,None,None)))(wl,am,pwv)
 
     def vect1d_OZabstransparency(self,wl,am,oz):
@@ -501,6 +501,44 @@ class SimpleDiffAtmEmulator:
                         in_axes=(0,None,None,None,None,None))(wl,am,pwv,oz, tau, beta)
                                     
                                     
+    # vectorize scalar functions along wl and airmass or another axis
+    def vect2d_Rayleightransparency(self,wl,am):
+        return jit(vmap(vmap(self.GetRayleighTransparencyScalar, in_axes=(0, None)),in_axes=(None,0)))(wl,am)
+
+    def vect2d_O2abstransparency(self,wl,am):
+        return jit(vmap(vmap(self.GetO2absTransparencyScalar,in_axes=(0, None)),in_axes=(None,0)))(wl,am)
+
+    def vect2da_PWVabstransparency(self,wl,am,pwv):
+        return jit(vmap(vmap(self.GetPWVabsTransparencyScalar,in_axes=(0, None,None)),in_axes=(None,0,None)))(wl,am,pwv)
+
+    def vect2db_PWVabstransparency(self,wl,am,pwv):
+        return jit(vmap(vmap(self.GetPWVabsTransparencyScalar,in_axes=(0, None,None)),in_axes=(None,None,0)))(wl,am,pwv)
+
+
+    def vect2da_OZabstransparency(self,wl,am,oz):
+        return jit(vmap(vmap(self.GetOZabsTransparencyScalar,in_axes=(0, None,None)),in_axes=(None,0,None)))(wl,am,oz)
+
+    def vect2db_OZabstransparency(self,wl,am,oz):
+        return jit(vmap(vmap(self.GetOZabsTransparencyScalar,in_axes=(0, None,None)),in_axes=(None,None,0)))(wl,am,oz)
+
+    def vect2da_Aerosolstransparency(self,wl,am,tau,beta):
+        return jit(vmap(vmap(self.GetAerosolsTransparenciesScalar,in_axes=(0, None,None,None)),in_axes=(None,0,None,None)))(wl,am,tau,beta)
+
+    def vect2db_Aerosolstransparency(self,wl,am,tau,beta):
+        return jit(vmap(vmap(self.GetAerosolsTransparenciesScalar,in_axes=(0, None,None,None)),in_axes=(None,None,0,None)))(wl,am,tau,beta)
+
+    def vect2dc_Aerosolstransparency(self,wl,am,tau,beta):
+        return jit(vmap(vmap(self.GetAerosolsTransparenciesScalar,in_axes=(0, None,None,None)),in_axes=(None,None,None,0)))(wl,am,tau,beta)
+
+
+    def vect2da_Griddedtransparency(self,wl,am,pwv,oz):
+        return jit(vmap(vmap(self.GetGriddedTransparenciesScalar,in_axes=(0, None,None,None)),in_axes=(None,0,None,None)))(wl,am,pwv,oz)
+
+    def vect2db_Griddedtransparency(self,wl,am,pwv,oz):
+        return jit(vmap(vmap(self.GetGriddedTransparenciesScalar,in_axes=(0, None,None,None)),in_axes=(None,None,0,None)))(wl,am,pwv,oz)
+
+    def vect2dc_Griddedtransparency(self,wl,am,pwv,oz):
+        return jit(vmap(vmap(self.GetGriddedTransparenciesScalar,in_axes=(0, None,None,None)),in_axes=(None,None,None,0)))(wl,am,pwv,oz)
 
 
 
