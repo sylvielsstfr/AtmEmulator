@@ -40,6 +40,7 @@ dev = [
     "astropy", # to open fits file in pyextinction
     "jax", # for using the differential emulator implemented in jax
     "jaxlib", # for using the differential emulator implemented in jax
+    "interpax", # cubic interpolation up to 3D for jax
     "asv==0.5.1", # Used to compute performance benchmarks
 ]
 

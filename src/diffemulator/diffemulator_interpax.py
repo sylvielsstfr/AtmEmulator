@@ -14,7 +14,7 @@ import numpy as np
 from jax import grad, jit, vmap,jacobian,jacfwd, hessian,lax
 import jax.numpy as jnp
 from functools import partial
-from diffemulator.interpolate import RegularGridInterpolator
+from interpax import Interpolator2D,Interpolator3D
 #from interpolate import RegularGridInterpolator
 import pickle
 
@@ -154,14 +154,12 @@ class SimpleDiffAtmEmulator:
         self.lambda0 = 550.
         self.tau0 = 1.
 
-        # interpolation functions are build on the loaded dataset
-        self.func_rayleigh = RegularGridInterpolator((self.WL,self.AIRMASS),self.data_rayleigh)
-        self.func_O2abs = RegularGridInterpolator((self.WL,self.AIRMASS),self.data_O2abs)
-        self.func_PWVabs = RegularGridInterpolator((self.WL,self.AIRMASS,self.PWV),self.data_PWVabs)
-        self.func_OZabs = RegularGridInterpolator((self.WL,self.AIRMASS,self.OZ),self.data_OZabs)
-    
-                         
-
+       
+        
+        self.func_rayleigh = Interpolator2D(self.WL,self.AIRMASS,self.data_rayleigh)
+        self.func_O2abs = Interpolator2D(self.WL,self.AIRMASS,self.data_O2abs)
+        self.func_PWVabs = Interpolator3D(self.WL,self.AIRMASS,self.PWV,self.data_PWVabs)
+        self.func_OZabs = Interpolator3D(self.WL,self.AIRMASS,self.OZ,self.data_OZabs)
 
 
         # initialise flag that activate
@@ -230,40 +228,28 @@ class SimpleDiffAtmEmulator:
         return self.WL
     
     def GetRayleighTransparencyScalar(self,wl,am):
-        pts = jnp.array([(wl,am)])
-        return self.func_rayleigh(pts)[0]
+        return self.func_rayleigh([wl],[am])[0]
             
     def GetRayleighTransparency1DArray(self,wl,am):
-        pts = [ (the_wl,am) for the_wl in wl ]
-        pts_stacked = jnp.array(pts)
-        return self.func_rayleigh(pts_stacked)
+        return self.func_rayleigh(wl,[am])
     
     def GetO2absTransparencyScalar(self,wl,am):
-        pts = jnp.array([(wl,am)])
-        return self.func_O2abs(pts)[0]
+        return self.func_O2abs([wl],[am])[0]
     
     def GetO2absTransparency1DArray(self,wl,am):
-        pts = [ (the_wl,am) for the_wl in wl ]
-        pts_stacked = jnp.array(pts)
-        return self.func_O2abs(pts_stacked)
+        return self.func_O2abs(wl,[am])
     
     def GetPWVabsTransparencyScalar(self,wl,am,pwv):
-        pts = jnp.array([ (wl,am,pwv) ])
-        return self.func_PWVabs(pts)[0]
+        return self.func_PWVabs([wl],[am],[pwv])[0]
     
     def GetPWVabsTransparency1DArray(self,wl,am,pwv):
-        pts = [ (the_wl,am,pwv) for the_wl in wl ]
-        pts_stacked = jnp.array(pts)
-        return self.func_PWVabs(pts_stacked)
+        return self.func_PWVabs(wl,[am],[pwv])
     
     def GetOZabsTransparencyScalar(self,wl,am,oz):
-        pts = jnp.array([(wl,am,oz)])
-        return self.func_OZabs(pts)[0]
+        return self.func_OZabs([wl],[am],[oz])[0]
     
     def GetOZabsTransparency1DArray(self,wl,am,oz):
-        pts = [ (the_wl,am,oz) for the_wl in wl ]
-        pts_stacked = jnp.array(pts)
-        return self.func_OZabs(pts_stacked)
+        return self.func_OZabs(wl,[am],[oz])
     
 
     def GetGriddedTransparenciesScalar(self,wl,am,pwv,oz):
