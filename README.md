@@ -24,11 +24,13 @@ After cloning the repo from github,
 the installation may proceed as follow:
 
          go in the package top directory (where the pyproject.toml file is):
-         cd AtmEmulator
+         cd ``AtmEmulator``
 
-         python -m pip install -e .
+         pip install -e .'[dev]'
+
          or
-         python -m pip install .
+
+         python install -e . [dev]
 
 
 
@@ -37,6 +39,7 @@ the installation may proceed as follow:
 ### Simple Usage
 
 The Top class ``SimpleAtmEmulator`` based on an interpolator grid of atmospheric transmission can be called as follow from a python application :
+
    - choosing the observation site among a pre-defined list names 
    'LSST','CTIO','OHP' for observatoire de Haute Provence,'PDM' for observatoire du Pic du Midi,'OMK' for Mauna Kea,'OSL' for Sea Level
    
@@ -71,7 +74,7 @@ The Top class ``SimpleAtmEmulator`` based on an interpolator grid of atmospheric
             transm is the array of  the atmospheric transmission (one element per wavelength element)
 
 
-   for more details, refer to the [notebooks](docs/notebooks/intro_notebook.ipynb).
+   for more details, please refer to the [notebooks](docs/notebooks/intro_notebook.ipynb).
 
 
    It is also possible to use this emulator for other sites like CTIO, Mauna Kea, Observatoire de Haute Provence, Pic du Midi, Sea Level.
