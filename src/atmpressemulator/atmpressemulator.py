@@ -3,7 +3,7 @@
 #- author : Sylvie Dagoret-Campagne
 #- affiliation : IJCLab/IN2P3/CNRS
 #- creation date : 2023/10/24
-#- last update : 2023/10/25
+#- last update : 2023/10/31
 #This emulator is based from datagrid of atmospheric transparencies extracted from libradtran
 
 import numpy as np
