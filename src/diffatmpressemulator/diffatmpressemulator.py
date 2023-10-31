@@ -2,17 +2,19 @@
 #
 #- author : Sylvie Dagoret-Campagne
 #- affiliation : IJCLab/IN2P3/CNRS
-#- creation date : 2023/10/24
+#- creation date : 2023/10/31
 #- last update : 2023/10/31
 #This emulator is based from datagrid of atmospheric transparencies extracted from libradtran
 
-import numpy as np
+import jax.numpy as jnp
 import sys,getopt
-from simpleemulator.simpleatmemulator import SimpleAtmEmulator,find_data_path,final_path_data
-from simpleemulator.simpleatmemulator import Dict_Of_sitesAltitudes,Dict_Of_sitesPressures
+from functools import partial
+
+from diffemulator.diffemulator_interpax  import SimpleDiffAtmEmulator,final_path_data
+from diffemulator.diffemulator_interpax  import Dict_Of_sitesAltitudes,Dict_Of_sitesPressures
 
 
-class AtmPressEmulator(SimpleAtmEmulator):
+class DiffAtmPressEmulator(SimpleDiffAtmEmulator):
     """
     Emulate Atmospheric Transparency above LSST from a data grids
     extracted from libradtran and analytical functions for aerosols.
@@ -27,7 +29,7 @@ class AtmPressEmulator(SimpleAtmEmulator):
     with local pressures.
     """
     def __init__(self,obs_str = "LSST", pressure = 0 , path = final_path_data) : 
-        SimpleAtmEmulator.__init__(self,obs_str = obs_str, path=path)
+        SimpleDiffAtmEmulator.__init__(self,obs_str = obs_str, path=path)
         """
         Initialize the class for data point files from which the 2D and 3D grids are created.
         Interpolation are calculated from the scipy RegularGridInterpolator() function
@@ -46,17 +48,25 @@ class AtmPressEmulator(SimpleAtmEmulator):
         if pressure == 0.0:
             self.pressureratio = 1
 
+        self.satpower=1.16306918
 
-
-    def GetRayleighTransparencyArray(self,wl,am):
+    def GetRayleighTransparencyScalar(self,wl,am):
         """
         Scaling of optical depth by the term P/Pref, where P is the true pressure
         and Pref is the reference pressure for the site.
         """
-        return np.power(super().GetRayleighTransparencyArray(wl,am),self.pressureratio)
+        return jnp.power(super().GetRayleighTransparencyScalar(wl,am),self.pressureratio)
     
 
-    def GetO2absTransparencyArray(self,wl,am,satpower=1.16306918):
+    def GetRayleighTransparency1DArray(self,wl,am):
+        """
+        Scaling of optical depth by the term P/Pref, where P is the true pressure
+        and Pref is the reference pressure for the site.
+        """
+        return jnp.power(super().GetRayleighTransparency1DArray(wl,am),self.pressureratio)
+    
+
+    def GetO2absTransparencyScalar(self,wl,am):
         """
         Correction of O2 absorption profile by the P/Pref with a power estimated
         from libradtran simulations, where P is the true pressure
@@ -65,9 +75,23 @@ class AtmPressEmulator(SimpleAtmEmulator):
         Comparing LSST site with pressure at Mauna Kea and Sea Level show the satpower
         = 1.1 is appropriate.
         """
-        return np.power(super().GetO2absTransparencyArray(wl,am),
-                        np.power(self.pressureratio,satpower))
+        return jnp.power(super().GetO2absTransparencyScalar(wl,am),
+                        jnp.power(self.pressureratio,self.satpower))
     
+
+    def GetO2absTransparency1DArray(self,wl,am):
+        """
+        Correction of O2 absorption profile by the P/Pref with a power estimated
+        from libradtran simulations, where P is the true pressure
+        and Pref is the reference pressure for the site.
+
+        Comparing LSST site with pressure at Mauna Kea and Sea Level show the satpower
+        = 1.1 is appropriate.
+        """
+        return jnp.power(super().GetO2absTransparency1DArray(wl,am),
+                        jnp.power(self.pressureratio,self.satpower))
+    
+
 
 def usage():
     print("*******************************************************************")
@@ -88,7 +112,7 @@ def run(obs_str, pressure):
     print("==============================================================================")
     
     
-    emul = AtmPressEmulator(obs_str = obs_str, pressure = pressure)
+    emul = DiffAtmPressEmulator(obs_str = obs_str, pressure = pressure)
     wl = [400.,800.,900.]
     am=1.2
     pwv =4.0

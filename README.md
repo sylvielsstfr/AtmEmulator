@@ -33,11 +33,27 @@ the installation may proceed as follow:
 
 
 ## Usage 
-For LSST
 
-            from atmosphtransmemullsst.simpleatmospherictransparencyemulator import SimpleAtmEmulator
+### Simple Usage
 
-            emul = SimpleAtmEmulator()
+The Top class ``SimpleAtmEmulator`` based on an interpolator grid of atmospheric transmission can be called as follow from a python application :
+   - choosing the observation site among a pre-defined list names 
+   'LSST','CTIO','OHP' for observatoire de Haute Provence,'PDM' for observatoire du Pic du Midi,'OMK' for Mauna Kea,'OSL' for Sea Level
+   
+            # set the observation site
+            obs_str = 'LSST'
+            the_pressure = 743.0 # in mbar or hPa
+
+         
+            # import the module and the corresponding class
+            from atmemulator.atmemulator import AtmEmulator
+            from atmemulator.atmemulator import Dict_Of_sitesAltitudes,Dict_Of_sitesPressures
+
+            # create the emulator
+            # if you don't provide the pressure, the default pressure of the site given in
+            ``Dict_Of_sitesPressures`` is used (the standard tabulated one).
+
+            emul = SimpleAtmEmulator(obs_str = obs_str,pressure = the_pressure)
 
             # definitions of atmospheric parameters
             WL = np.linspace(350,1100, 100)  # wavelengths array
@@ -49,16 +65,20 @@ For LSST
             betas = [-1] # Angtrom exponent (one per component)
 
           
-
+            # compute the transmission
             transm = emul.GetAllTransparencies(WL,am,pwv0,oz0,ncomp=ncomp, taus=taus, betas=betas, flagAerosols=True)
 
             transm is the array of  the atmospheric transmission (one element per wavelength element)
 
 
-   for more details, refer to the notebooks.
+   for more details, refer to the [notebooks](docs/notebooks/intro_notebook.ipynb).
 
 
    It is also possible to use this emulator for other sites like CTIO, Mauna Kea, Observatoire de Haute Provence, Pic du Midi, Sea Level.
+
+### More advanced usage
+
+An avanced version based on Jax for autodifferentiation is implemented
 
 
 
