@@ -9,7 +9,7 @@
 import jax.numpy as jnp
 import sys,getopt
 from functools import partial
-
+from jax import lax
 from diffemulator.diffemulator_interpax  import SimpleDiffAtmEmulator,final_path_data
 from diffemulator.diffemulator_interpax  import Dict_Of_sitesAltitudes,Dict_Of_sitesPressures
 
@@ -28,7 +28,7 @@ class DiffAtmPressEmulator(SimpleDiffAtmEmulator):
     It uses the SimpleAtm Emulator. This particular class interpolate transparency
     with local pressures.
     """
-    def __init__(self,obs_str = "LSST", pressure = 0 , path = final_path_data) : 
+    def __init__(self,obs_str = "LSST", pressure = 0.0 , path = final_path_data) : 
         SimpleDiffAtmEmulator.__init__(self,obs_str = obs_str, path=path)
         """
         Initialize the class for data point files from which the 2D and 3D grids are created.
@@ -36,17 +36,26 @@ class DiffAtmPressEmulator(SimpleDiffAtmEmulator):
         Both types of data : trainging data for normal interpolaton use and the test data used
         to check accuracy of the interpolation of data.
 
-        parameters :
-          obs_str : pre-defined observation site tag corresponding to data files in data path
-          pressure : pressure for which one want the transmission in mbar or hPa
-          path    : path for data files
+        :param obs_str : pre-defined observation site tag corresponding to data files in data path, default LSST
+        :type obs_str: string 
+        :param pressure : pressure for which one want the transmission in mbar or hPa
+
+        :param path  : path for data files
+        :type path: string
         """
     
-        self.pressure = pressure
-        self.refpressure = Dict_Of_sitesPressures[obs_str]
-        self.pressureratio = self.pressure/self.refpressure
-        if pressure == 0.0:
-            self.pressureratio = 1
+        
+
+        cond_on_pressure = jnp.abs(pressure) < 10.0
+
+        pressure_ref = Dict_Of_sitesPressures[obs_str]
+
+        press_selected = lax.select(cond_on_pressure,pressure_ref,pressure)
+
+        self.pressure = press_selected
+        self.refpressure = pressure_ref
+        self.pressureratio = press_selected/pressure_ref
+       
 
         self.satpower=1.16306918
 

@@ -23,7 +23,7 @@ class DiffAtmEmulator(DiffAtmPressEmulator):
     
     By now AtmEmulator refer to the AtmPressEmulator which itself rely on the SimpleAtmEmulator.
     """
-    def __init__(self,obs_str = "LSST", pressure = 0 , path = final_path_data) : 
+    def __init__(self,obs_str = "LSST", pressure = 0.0 , path = final_path_data) : 
         DiffAtmPressEmulator.__init__(self,obs_str = obs_str, pressure = pressure , path=path)
         """
         Initialize the DiffAtmEmulator. 
