@@ -93,7 +93,7 @@ class SimpleDiffAtmEmulator:
         OBS_tag = ""
         if obs_str in Dict_Of_sitesAltitudes.keys():
             OBS_tag = obs_str
-            print(f"Observatory {obs_str} found in preselected observation sites")
+            #print(f"Observatory {obs_str} found in preselected observation sites")
         else:
             print(f"Observatory {obs_str} not in preselected observation sites")
             print(f"This site {obs_str} must be added in libradtranpy preselected sites")
