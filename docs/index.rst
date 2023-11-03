@@ -46,5 +46,8 @@ Notes:
    :hidden:
 
    Home page <self>
+   introduction
+   quickstart
+   datagrid
    API Reference <autoapi/index>
    Notebooks <notebooks>
